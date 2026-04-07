@@ -4,6 +4,8 @@ import 'register_screen.dart';
 import 'forgot_password_screen.dart';
 import 'student_dashboard_screen.dart';
 import 'parent_first_link_screen.dart';
+import 'admin_dashboard_screen.dart';
+import 'teacher/teacher_dashboard_screen.dart'; // Import pour enseignant
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -51,13 +53,67 @@ class _LoginScreenState extends State<LoginScreen> {
       final token = await ApiService.getToken();
       print('🔑 Token après login: ${token != null}');
       
-      if (user['role'] == 'parent') {
-        // Vérifier si le parent a déjà un enfant lié
+      // GESTION DES RÔLES
+      if (user['role'] == 'admin') {
+        // 👑 ADMIN
+        print('👑 Connexion administrateur');
+        if (mounted) {
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(
+              builder: (context) => AdminDashboardScreen(
+                email: user['email'],
+                adminName: user['fullName'],
+              ),
+            ),
+          );
+        }
+      }
+      else if (user['role'] == 'teacher') {
+        // 👨‍🏫 ENSEIGNANT
+        print('👨‍🏫 Connexion enseignant');
+        
+        // Récupérer les informations de l'enseignant (classe, etc.)
+        // Dans une vraie application, ces données viendraient du backend
+        final teacherInfo = await ApiService.getTeacherInfo(user['email']);
+        
+        if (mounted) {
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(
+              builder: (context) => TeacherDashboardScreen(
+                email: user['email'],
+                teacherName: user['fullName'],
+                className: teacherInfo['className'] ?? 'CM2 A',
+              ),
+            ),
+          );
+        }
+      }
+      else if (user['role'] == 'parent') {
+        // 👨‍👩‍👧 PARENT
+        print('👨‍👩‍👧 Connexion parent');
+        
+        // Afficher un indicateur de chargement
+        if (mounted) {
+          showDialog(
+            context: context,
+            barrierDismissible: false,
+            builder: (context) => const Center(
+              child: CircularProgressIndicator(),
+            ),
+          );
+        }
+
         final linkedChildResult = await ApiService.getLinkedChild(user['email']);
         print('📦 Résultat getLinkedChild: ${linkedChildResult['success']}');
         
-        if (linkedChildResult['success']) {
-          // Parent a déjà un enfant lié → va directement à son espace
+        if (mounted) {
+          Navigator.pop(context); // Fermer le dialogue de chargement
+        }
+        
+        if (linkedChildResult['success'] && mounted) {
+          // Parent a déjà un enfant lié
           final child = linkedChildResult['child'];
           Navigator.pushReplacement(
             context,
@@ -70,8 +126,8 @@ class _LoginScreenState extends State<LoginScreen> {
               ),
             ),
           );
-        } else {
-          // Parent n'a pas encore d'enfant lié → va vers la page de première liaison
+        } else if (mounted) {
+          // Parent n'a pas encore d'enfant lié
           Navigator.pushReplacement(
             context,
             MaterialPageRoute(
@@ -83,25 +139,43 @@ class _LoginScreenState extends State<LoginScreen> {
           );
         }
       } else {
-        // Élève
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(
-            builder: (context) => StudentDashboardScreen(
-              email: user['email'],
-              studentName: user['fullName'],
-              isParent: false,
+        // 👦 ÉLÈVE
+        print('👦 Connexion élève');
+        if (mounted) {
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(
+              builder: (context) => StudentDashboardScreen(
+                email: user['email'],
+                studentName: user['fullName'],
+                isParent: false,
+              ),
             ),
+          );
+        }
+      }
+    } else {
+      // ERREUR DE CONNEXION
+      String errorMessage = result['message'] ?? 'Erreur de connexion';
+      
+      // Vérifier si l'erreur indique une vérification d'email requise
+      if (result.containsKey('requiresVerification') && result['requiresVerification'] == true) {
+        errorMessage = 'Veuillez vérifier votre email avant de vous connecter';
+      }
+      
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(errorMessage),
+            backgroundColor: const Color(0xFFE57373),
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(10),
+            ),
+            duration: const Duration(seconds: 3),
           ),
         );
       }
-    } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(result['message']),
-          backgroundColor: const Color(0xFFE57373),
-        ),
-      );
     }
   }
 
@@ -109,88 +183,100 @@ class _LoginScreenState extends State<LoginScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       body: Container(
-        decoration: const BoxDecoration(
+        decoration: BoxDecoration(
           gradient: LinearGradient(
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
             colors: [
-              Color(0xFF0288D1), // Bleu foncé
-              Color(0xFF4FC3F7), // Bleu clair
+              const Color(0xFF0288D1).withOpacity(0.9),
+              const Color(0xFF4FC3F7).withOpacity(0.9),
             ],
           ),
         ),
         child: SafeArea(
           child: Center(
             child: SingleChildScrollView(
-              padding: const EdgeInsets.all(16),
+              padding: const EdgeInsets.all(20),
               child: Container(
                 width: double.infinity,
                 constraints: const BoxConstraints(maxWidth: 450),
                 decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.95),
-                  borderRadius: BorderRadius.circular(40),
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(30),
                   boxShadow: [
                     BoxShadow(
                       color: Colors.black.withOpacity(0.2),
-                      blurRadius: 20,
-                      offset: const Offset(0, 10),
+                      blurRadius: 30,
+                      offset: const Offset(0, 15),
                     ),
                   ],
                 ),
                 child: Padding(
-                  padding: const EdgeInsets.all(24),
+                  padding: const EdgeInsets.all(30),
                   child: Column(
+                    mainAxisSize: MainAxisSize.min,
                     children: [
-                      // Logo
-                      Container(
-                        width: 70,
-                        height: 70,
-                        decoration: BoxDecoration(
-                          gradient: const LinearGradient(
-                            colors: [Color(0xFF0288D1), Color(0xFF4FC3F7)],
-                            begin: Alignment.topLeft,
-                            end: Alignment.bottomRight,
-                          ),
-                          borderRadius: BorderRadius.circular(20),
-                          boxShadow: [
-                            BoxShadow(
-                              color: const Color(0xFF0288D1).withOpacity(0.3),
-                              blurRadius: 15,
-                              offset: const Offset(0, 8),
+                      // Logo avec animation
+                      TweenAnimationBuilder(
+                        tween: Tween<double>(begin: 0, end: 1),
+                        duration: const Duration(milliseconds: 800),
+                        curve: Curves.elasticOut,
+                        builder: (context, double value, child) {
+                          return Transform.scale(
+                            scale: value,
+                            child: child,
+                          );
+                        },
+                        child: Container(
+                          width: 90,
+                          height: 90,
+                          decoration: BoxDecoration(
+                            gradient: const LinearGradient(
+                              colors: [Color(0xFF0288D1), Color(0xFF4FC3F7)],
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
                             ),
-                          ],
-                        ),
-                        child: const Icon(
-                          Icons.school,
-                          color: Colors.white,
-                          size: 35,
+                            borderRadius: BorderRadius.circular(25),
+                            boxShadow: [
+                              BoxShadow(
+                                color: const Color(0xFF0288D1).withOpacity(0.3),
+                                blurRadius: 15,
+                                offset: const Offset(0, 8),
+                              ),
+                            ],
+                          ),
+                          child: const Icon(
+                            Icons.school,
+                            color: Colors.white,
+                            size: 45,
+                          ),
                         ),
                       ),
                       
-                      const SizedBox(height: 16),
+                      const SizedBox(height: 25),
                       
                       // Titre
                       const Text(
-                        'Connexion',
+                        'Bienvenue',
                         style: TextStyle(
-                          fontSize: 24,
+                          fontSize: 32,
                           fontWeight: FontWeight.bold,
-                          color: Color(0xFF01579B),
+                          color: Color(0xFF2C3E50),
                         ),
                       ),
                       
                       const SizedBox(height: 8),
                       
                       // Sous-titre
-                      const Text(
+                      Text(
                         'Connectez-vous à votre espace',
                         style: TextStyle(
-                          fontSize: 14,
-                          color: Colors.grey,
+                          fontSize: 15,
+                          color: Colors.grey[600],
                         ),
                       ),
                       
-                      const SizedBox(height: 30),
+                      const SizedBox(height: 35),
                       
                       // Formulaire
                       Form(
@@ -200,49 +286,46 @@ class _LoginScreenState extends State<LoginScreen> {
                             // Champ Email
                             Container(
                               decoration: BoxDecoration(
-                                color: Colors.white,
-                                borderRadius: BorderRadius.circular(20),
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: Colors.grey.withOpacity(0.1),
-                                    blurRadius: 10,
-                                    offset: const Offset(0, 4),
-                                  ),
-                                ],
+                                color: Colors.grey.shade50,
+                                borderRadius: BorderRadius.circular(15),
+                                border: Border.all(
+                                  color: Colors.grey.shade200,
+                                ),
                               ),
                               child: TextFormField(
                                 controller: _emailController,
                                 keyboardType: TextInputType.emailAddress,
                                 textInputAction: TextInputAction.next,
                                 enabled: !_isLoading,
+                                style: const TextStyle(fontSize: 16),
                                 decoration: InputDecoration(
                                   labelText: 'Adresse email',
-                                  labelStyle: const TextStyle(
-                                    fontSize: 14,
-                                    color: Color(0xFF01579B),
+                                  labelStyle: TextStyle(
+                                    fontSize: 15,
+                                    color: Colors.grey[600],
                                   ),
                                   prefixIcon: const Icon(
                                     Icons.email_outlined,
-                                    size: 20,
+                                    size: 22,
                                     color: Color(0xFF0288D1),
                                   ),
                                   border: OutlineInputBorder(
-                                    borderRadius: BorderRadius.circular(20),
+                                    borderRadius: BorderRadius.circular(15),
                                     borderSide: BorderSide.none,
                                   ),
                                   enabledBorder: OutlineInputBorder(
-                                    borderRadius: BorderRadius.circular(20),
+                                    borderRadius: BorderRadius.circular(15),
                                     borderSide: BorderSide.none,
                                   ),
                                   focusedBorder: OutlineInputBorder(
-                                    borderRadius: BorderRadius.circular(20),
+                                    borderRadius: BorderRadius.circular(15),
                                     borderSide: const BorderSide(color: Color(0xFF0288D1), width: 2),
                                   ),
                                   filled: true,
-                                  fillColor: Colors.white,
+                                  fillColor: Colors.transparent,
                                   contentPadding: const EdgeInsets.symmetric(
                                     horizontal: 20,
-                                    vertical: 16,
+                                    vertical: 18,
                                   ),
                                 ),
                                 validator: (value) {
@@ -250,6 +333,9 @@ class _LoginScreenState extends State<LoginScreen> {
                                     return 'L\'email est requis';
                                   }
                                   if (!value.contains('@')) {
+                                    return 'Email invalide';
+                                  }
+                                  if (!value.contains('.')) {
                                     return 'Email invalide';
                                   }
                                   return null;
@@ -262,15 +348,11 @@ class _LoginScreenState extends State<LoginScreen> {
                             // Champ Mot de passe
                             Container(
                               decoration: BoxDecoration(
-                                color: Colors.white,
-                                borderRadius: BorderRadius.circular(20),
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: Colors.grey.withOpacity(0.1),
-                                    blurRadius: 10,
-                                    offset: const Offset(0, 4),
-                                  ),
-                                ],
+                                color: Colors.grey.shade50,
+                                borderRadius: BorderRadius.circular(15),
+                                border: Border.all(
+                                  color: Colors.grey.shade200,
+                                ),
                               ),
                               child: TextFormField(
                                 controller: _passwordController,
@@ -278,21 +360,22 @@ class _LoginScreenState extends State<LoginScreen> {
                                 textInputAction: TextInputAction.done,
                                 enabled: !_isLoading,
                                 onFieldSubmitted: (_) => _handleLogin(),
+                                style: const TextStyle(fontSize: 16),
                                 decoration: InputDecoration(
                                   labelText: 'Mot de passe',
-                                  labelStyle: const TextStyle(
-                                    fontSize: 14,
-                                    color: Color(0xFF01579B),
+                                  labelStyle: TextStyle(
+                                    fontSize: 15,
+                                    color: Colors.grey[600],
                                   ),
                                   prefixIcon: const Icon(
                                     Icons.lock_outline,
-                                    size: 20,
+                                    size: 22,
                                     color: Color(0xFF0288D1),
                                   ),
                                   suffixIcon: IconButton(
                                     icon: Icon(
                                       _isPasswordVisible ? Icons.visibility_off : Icons.visibility,
-                                      size: 20,
+                                      size: 22,
                                       color: const Color(0xFF0288D1),
                                     ),
                                     onPressed: () {
@@ -302,22 +385,22 @@ class _LoginScreenState extends State<LoginScreen> {
                                     },
                                   ),
                                   border: OutlineInputBorder(
-                                    borderRadius: BorderRadius.circular(20),
+                                    borderRadius: BorderRadius.circular(15),
                                     borderSide: BorderSide.none,
                                   ),
                                   enabledBorder: OutlineInputBorder(
-                                    borderRadius: BorderRadius.circular(20),
+                                    borderRadius: BorderRadius.circular(15),
                                     borderSide: BorderSide.none,
                                   ),
                                   focusedBorder: OutlineInputBorder(
-                                    borderRadius: BorderRadius.circular(20),
+                                    borderRadius: BorderRadius.circular(15),
                                     borderSide: const BorderSide(color: Color(0xFF0288D1), width: 2),
                                   ),
                                   filled: true,
-                                  fillColor: Colors.white,
+                                  fillColor: Colors.transparent,
                                   contentPadding: const EdgeInsets.symmetric(
                                     horizontal: 20,
-                                    vertical: 16,
+                                    vertical: 18,
                                   ),
                                 ),
                                 validator: (value) {
@@ -344,7 +427,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                   );
                                 },
                                 style: TextButton.styleFrom(
-                                  padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
+                                  padding: EdgeInsets.zero,
                                 ),
                                 child: const Text(
                                   'Mot de passe oublié ?',
@@ -357,19 +440,19 @@ class _LoginScreenState extends State<LoginScreen> {
                               ),
                             ),
                             
-                            const SizedBox(height: 20),
+                            const SizedBox(height: 25),
                             
                             // Bouton Connexion
                             Container(
                               width: double.infinity,
-                              height: 50,
+                              height: 55,
                               decoration: BoxDecoration(
                                 gradient: const LinearGradient(
                                   colors: [Color(0xFF0288D1), Color(0xFF4FC3F7)],
                                   begin: Alignment.centerLeft,
                                   end: Alignment.centerRight,
                                 ),
-                                borderRadius: BorderRadius.circular(20),
+                                borderRadius: BorderRadius.circular(15),
                                 boxShadow: [
                                   BoxShadow(
                                     color: const Color(0xFF0288D1).withOpacity(0.3),
@@ -384,13 +467,13 @@ class _LoginScreenState extends State<LoginScreen> {
                                   backgroundColor: Colors.transparent,
                                   shadowColor: Colors.transparent,
                                   shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(20),
+                                    borderRadius: BorderRadius.circular(15),
                                   ),
                                 ),
                                 child: _isLoading
                                     ? const SizedBox(
-                                        height: 20,
-                                        width: 20,
+                                        height: 25,
+                                        width: 25,
                                         child: CircularProgressIndicator(
                                           color: Colors.white,
                                           strokeWidth: 2,
@@ -399,7 +482,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                     : const Text(
                                         'Se connecter',
                                         style: TextStyle(
-                                          fontSize: 16,
+                                          fontSize: 18,
                                           fontWeight: FontWeight.bold,
                                           color: Colors.white,
                                         ),
@@ -407,17 +490,17 @@ class _LoginScreenState extends State<LoginScreen> {
                               ),
                             ),
                             
-                            const SizedBox(height: 16),
+                            const SizedBox(height: 20),
                             
                             // Lien vers inscription
                             Row(
                               mainAxisAlignment: MainAxisAlignment.center,
                               children: [
-                                const Text(
+                                Text(
                                   'Pas encore de compte ? ',
                                   style: TextStyle(
-                                    fontSize: 14,
-                                    color: Colors.grey,
+                                    fontSize: 15,
+                                    color: Colors.grey[600],
                                   ),
                                 ),
                                 TextButton(
@@ -435,7 +518,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                   child: const Text(
                                     'S\'inscrire',
                                     style: TextStyle(
-                                      fontSize: 14,
+                                      fontSize: 15,
                                       fontWeight: FontWeight.bold,
                                       color: Color(0xFF0288D1),
                                     ),

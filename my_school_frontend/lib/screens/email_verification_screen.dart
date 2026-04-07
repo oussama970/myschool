@@ -27,18 +27,26 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen> {
   }
 
   Future<void> _loadChildInfo() async {
-    final result = await ApiService.getChildInfo(widget.email);
-    if (result['success'] && mounted) {
-      setState(() {
-        _childName = result['child']['fullName'];
-      });
+    try {
+      final result = await ApiService.getChildInfo(widget.email);
+      if (result['success'] && mounted) {
+        setState(() {
+          _childName = result['child']['fullName'];
+        });
+      }
+    } catch (e) {
+      print('Erreur chargement info enfant: $e');
     }
   }
 
   @override
   void dispose() {
-    for (var c in _codeControllers) c.dispose();
-    for (var n in _focusNodes) n.dispose();
+    for (var c in _codeControllers) {
+      c.dispose();
+    }
+    for (var n in _focusNodes) {
+      n.dispose();
+    }
     super.dispose();
   }
 
@@ -47,24 +55,41 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen> {
     
     String code = _codeControllers.map((c) => c.text).join();
     
-    final result = await ApiService.verifyEmail(
-      email: widget.email,
-      code: code,
-    );
-
-    setState(() => _isLoading = false);
-
-    if (!mounted) return;
-
-    if (result['success']) {
-      // Le code parent a été envoyé par email, on ne l'affiche pas
-      _showSuccessDialog();
-    } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(result['message']), backgroundColor: Colors.red),
+    try {
+      final result = await ApiService.verifyEmail(
+        email: widget.email,
+        code: code,
       );
-      for (var c in _codeControllers) c.clear();
-      _focusNodes[0].requestFocus();
+
+      if (!mounted) return;
+
+      if (result['success']) {
+        _showSuccessDialog();
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(result['message'] ?? 'Code incorrect'),
+            backgroundColor: Colors.red,
+          ),
+        );
+        for (var c in _codeControllers) {
+          c.clear();
+        }
+        _focusNodes[0].requestFocus();
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Erreur: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
     }
   }
 
@@ -74,24 +99,44 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen> {
       barrierDismissible: false,
       builder: (context) => AlertDialog(
         title: const Text('✅ Compte vérifié !'),
-        content: const Column(
+        content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Text(
+            const Text(
               'Un code à 10 chiffres a été envoyé à votre email',
               textAlign: TextAlign.center,
               style: TextStyle(fontWeight: FontWeight.bold),
             ),
-            SizedBox(height: 16),
-            Text(
+            const SizedBox(height: 16),
+            const Text(
               'Vous devrez communiquer ce code à vos parents.',
               textAlign: TextAlign.center,
             ),
-            SizedBox(height: 8),
-            Icon(
-              Icons.mark_email_read,
-              size: 50,
-              color: Color(0xFF0288D1),
+            const SizedBox(height: 16),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: const Color(0xFF0288D1).withOpacity(0.1),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: const Color(0xFF0288D1)),
+              ),
+              child: const Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(
+                    Icons.mark_email_read,
+                    color: Color(0xFF0288D1),
+                  ),
+                  SizedBox(width: 8),
+                  Text(
+                    'Email envoyé',
+                    style: TextStyle(
+                      color: Color(0xFF0288D1),
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ],
+              ),
             ),
           ],
         ),
@@ -122,10 +167,15 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen> {
     } else if (value.isEmpty && index > 0) {
       FocusScope.of(context).requestFocus(_focusNodes[index - 1]);
     }
+    
+    // Vérification automatique quand les 6 chiffres sont saisis
     if (index == 5 && value.length == 1) {
-      Future.delayed(const Duration(milliseconds: 100), () {
-        _verifyCode();
-      });
+      String fullCode = _codeControllers.map((c) => c.text).join();
+      if (fullCode.length == 6) {
+        Future.delayed(const Duration(milliseconds: 100), () {
+          _verifyCode();
+        });
+      }
     }
   }
 
@@ -138,8 +188,8 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen> {
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
             colors: [
-              Color(0xFF0288D1), // Bleu foncé
-              Color(0xFF4FC3F7), // Bleu clair
+              Color(0xFF0288D1),
+              Color(0xFF4FC3F7),
             ],
           ),
         ),
@@ -151,31 +201,32 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen> {
                 width: double.infinity,
                 constraints: const BoxConstraints(maxWidth: 450),
                 decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.95),
-                  borderRadius: BorderRadius.circular(40),
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(30),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withOpacity(0.2),
-                      blurRadius: 20,
-                      offset: const Offset(0, 10),
+                      color: Colors.black.withOpacity(0.1),
+                      blurRadius: 30,
+                      offset: const Offset(0, 15),
                     ),
                   ],
                 ),
                 child: Padding(
-                  padding: const EdgeInsets.all(24),
+                  padding: const EdgeInsets.all(30),
                   child: Column(
+                    mainAxisSize: MainAxisSize.min,
                     children: [
                       // Icône
                       Container(
-                        width: 70,
-                        height: 70,
+                        width: 80,
+                        height: 80,
                         decoration: BoxDecoration(
                           gradient: const LinearGradient(
                             colors: [Color(0xFF0288D1), Color(0xFF4FC3F7)],
                             begin: Alignment.topLeft,
                             end: Alignment.bottomRight,
                           ),
-                          borderRadius: BorderRadius.circular(20),
+                          borderRadius: BorderRadius.circular(25),
                           boxShadow: [
                             BoxShadow(
                               color: const Color(0xFF0288D1).withOpacity(0.3),
@@ -187,17 +238,17 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen> {
                         child: const Icon(
                           Icons.mark_email_read,
                           color: Colors.white,
-                          size: 35,
+                          size: 40,
                         ),
                       ),
                       
-                      const SizedBox(height: 16),
+                      const SizedBox(height: 20),
                       
                       // Titre
                       const Text(
-                        'Vérification email',
+                        'Vérification',
                         style: TextStyle(
-                          fontSize: 24,
+                          fontSize: 28,
                           fontWeight: FontWeight.bold,
                           color: Color(0xFF01579B),
                         ),
@@ -205,9 +256,23 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen> {
                       
                       const SizedBox(height: 8),
                       
+                      // Sous-titre
+                      const Text(
+                        'Entrez le code à 6 chiffres',
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: Colors.grey,
+                        ),
+                      ),
+                      
+                      const SizedBox(height: 8),
+                      
                       // Email
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 8,
+                        ),
                         decoration: BoxDecoration(
                           color: const Color(0xFF0288D1).withOpacity(0.1),
                           borderRadius: BorderRadius.circular(20),
@@ -224,6 +289,37 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen> {
                       
                       const SizedBox(height: 30),
                       
+                      // Message d'information
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: Colors.orange.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: Colors.orange.withOpacity(0.3)),
+                        ),
+                        child: const Row(
+                          children: [
+                            Icon(
+                              Icons.info_outline,
+                              size: 20,
+                              color: Colors.orange,
+                            ),
+                            SizedBox(width: 12),
+                            Expanded(
+                              child: Text(
+                                'Un code à 6 chiffres vous a été envoyé par email',
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  color: Color(0xFF2C3E50),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      
+                      const SizedBox(height: 24),
+                      
                       // Champs de code
                       LayoutBuilder(
                         builder: (context, constraints) {
@@ -236,15 +332,13 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen> {
                               margin: const EdgeInsets.symmetric(horizontal: 3),
                               decoration: BoxDecoration(
                                 color: Colors.white,
-                                borderRadius: BorderRadius.circular(10),
-                                border: Border.all(color: Colors.grey.shade300),
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: Colors.grey.withOpacity(0.1),
-                                    blurRadius: 5,
-                                    offset: const Offset(0, 2),
-                                  ),
-                                ],
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(
+                                  color: _codeControllers[index].text.isNotEmpty
+                                      ? const Color(0xFF0288D1)
+                                      : Colors.grey.shade300,
+                                  width: _codeControllers[index].text.isNotEmpty ? 2 : 1,
+                                ),
                               ),
                               child: TextFormField(
                                 controller: _codeControllers[index],
@@ -269,35 +363,21 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen> {
                         },
                       ),
                       
-                      const SizedBox(height: 30),
+                      const SizedBox(height: 24),
                       
                       // Bouton Vérifier
-                      Container(
+                      SizedBox(
                         width: double.infinity,
-                        height: 50,
-                        decoration: BoxDecoration(
-                          gradient: const LinearGradient(
-                            colors: [Color(0xFF0288D1), Color(0xFF4FC3F7)],
-                            begin: Alignment.centerLeft,
-                            end: Alignment.centerRight,
-                          ),
-                          borderRadius: BorderRadius.circular(20),
-                          boxShadow: [
-                            BoxShadow(
-                              color: const Color(0xFF0288D1).withOpacity(0.3),
-                              blurRadius: 15,
-                              offset: const Offset(0, 8),
-                            ),
-                          ],
-                        ),
+                        height: 55,
                         child: ElevatedButton(
                           onPressed: _isLoading ? null : _verifyCode,
                           style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.transparent,
-                            shadowColor: Colors.transparent,
+                            backgroundColor: const Color(0xFF0288D1),
+                            foregroundColor: Colors.white,
                             shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(20),
+                              borderRadius: BorderRadius.circular(12),
                             ),
+                            elevation: 2,
                           ),
                           child: _isLoading
                               ? const SizedBox(
@@ -309,13 +389,32 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen> {
                                   ),
                                 )
                               : const Text(
-                                  'Vérifier',
+                                  'VÉRIFIER',
                                   style: TextStyle(
                                     fontSize: 16,
                                     fontWeight: FontWeight.bold,
-                                    color: Colors.white,
                                   ),
                                 ),
+                        ),
+                      ),
+                      
+                      const SizedBox(height: 16),
+                      
+                      // Lien pour renvoyer le code
+                      TextButton(
+                        onPressed: _isLoading ? null : () {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text('Un nouveau code a été envoyé à ${widget.email}'),
+                              backgroundColor: const Color(0xFF4CAF9F),
+                            ),
+                          );
+                        },
+                        child: const Text(
+                          'Renvoyer le code',
+                          style: TextStyle(
+                            color: Color(0xFF0288D1),
+                          ),
                         ),
                       ),
                     ],
