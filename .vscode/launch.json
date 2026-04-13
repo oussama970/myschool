@@ -5,7 +5,12 @@
     "version": "0.2.0",
     "configurations": [
         
-        
-
+        {
+            "name": "my_school_frontend_clean (Flutter)",
+            "program": "lib/main.dart",
+            "cwd": "my_school_frontend_clean",
+            "request": "launch",
+            "type": "dart"
+        }
     ]
 }

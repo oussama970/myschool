@@ -1,0 +1,6 @@
+{
+    "dart.flutterRunConfiguration": {
+        "type": "flutter",
+        "deviceId": "emulator-5554"
+    }
+}

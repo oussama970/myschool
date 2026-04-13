@@ -1,12 +1,11 @@
-// src/controllers/adminController.js
 const User = require('../models/User');
 const bcrypt = require('bcryptjs');
 
 // @desc    Créer un administrateur (nécessite un admin existant)
 // @route   POST /api/admin/create
+// @access  Private/Admin
 const createAdmin = async (req, res) => {
   try {
-    // Vérifier que l'utilisateur connecté est admin
     if (req.user.role !== 'admin') {
       return res.status(403).json({ 
         success: false,
@@ -16,7 +15,6 @@ const createAdmin = async (req, res) => {
 
     const { fullName, email, password } = req.body;
 
-    // Validation
     if (!fullName || !email || !password) {
       return res.status(400).json({ 
         success: false,
@@ -31,7 +29,6 @@ const createAdmin = async (req, res) => {
       });
     }
 
-    // Vérifier si l'email existe déjà
     const existingUser = await User.findOne({ email: email.toLowerCase() });
     if (existingUser) {
       return res.status(400).json({ 
@@ -40,11 +37,9 @@ const createAdmin = async (req, res) => {
       });
     }
 
-    // Hasher le mot de passe
     const salt = await bcrypt.genSalt(10);
     const hashedPassword = await bcrypt.hash(password, salt);
 
-    // Créer l'admin
     const admin = await User.create({
       fullName,
       email: email.toLowerCase(),
@@ -75,6 +70,7 @@ const createAdmin = async (req, res) => {
 
 // @desc    Liste tous les utilisateurs (admin seulement)
 // @route   GET /api/admin/users
+// @access  Private/Admin
 const getAllUsers = async (req, res) => {
   try {
     if (req.user.role !== 'admin') {
@@ -104,6 +100,7 @@ const getAllUsers = async (req, res) => {
 
 // @desc    Supprimer un utilisateur (admin seulement)
 // @route   DELETE /api/admin/users/:id
+// @access  Private/Admin
 const deleteUser = async (req, res) => {
   try {
     if (req.user.role !== 'admin') {
@@ -121,7 +118,6 @@ const deleteUser = async (req, res) => {
       });
     }
 
-    // Empêcher la suppression de son propre compte
     if (user._id.toString() === req.user.id) {
       return res.status(400).json({ 
         success: false,
@@ -144,8 +140,99 @@ const deleteUser = async (req, res) => {
   }
 };
 
+// @desc    Obtenir le profil admin
+// @route   GET /api/admin/profile/:email
+// @access  Private/Admin
+const getAdminProfile = async (req, res) => {
+  try {
+    const { email } = req.params;
+    const admin = await User.findOne({ email: email.toLowerCase(), role: 'admin' }).select('-password');
+    
+    if (!admin) {
+      return res.status(404).json({ success: false, message: 'Admin non trouvé' });
+    }
+    
+    res.json({
+      success: true,
+      fullName: admin.fullName,
+      email: admin.email,
+      phoneNumber: admin.phoneNumber || '',
+      createdAt: admin.createdAt,
+      lastLogin: admin.lastLogin || null,
+    });
+  } catch (error) {
+    console.error('Erreur getAdminProfile:', error);
+    res.status(500).json({ success: false, message: 'Erreur serveur' });
+  }
+};
+
+// @desc    Mettre à jour le profil admin
+// @route   PUT /api/admin/profile
+// @access  Private/Admin
+const updateAdminProfile = async (req, res) => {
+  try {
+    const { email, fullName, phoneNumber } = req.body;
+    
+    const admin = await User.findOne({ email: email.toLowerCase(), role: 'admin' });
+    if (!admin) {
+      return res.status(404).json({ success: false, message: 'Admin non trouvé' });
+    }
+    
+    if (fullName) admin.fullName = fullName;
+    if (phoneNumber) admin.phoneNumber = phoneNumber;
+    
+    await admin.save();
+    
+    res.json({
+      success: true,
+      message: 'Profil mis à jour',
+      admin: {
+        fullName: admin.fullName,
+        email: admin.email,
+        phoneNumber: admin.phoneNumber,
+      }
+    });
+  } catch (error) {
+    console.error('Erreur updateAdminProfile:', error);
+    res.status(500).json({ success: false, message: 'Erreur serveur' });
+  }
+};
+
+// @desc    Changer le mot de passe admin
+// @route   POST /api/admin/change-password
+// @access  Private/Admin
+const changeAdminPassword = async (req, res) => {
+  try {
+    const { email, currentPassword, newPassword } = req.body;
+    
+    const admin = await User.findOne({ email: email.toLowerCase(), role: 'admin' });
+    if (!admin) {
+      return res.status(404).json({ success: false, message: 'Admin non trouvé' });
+    }
+    
+    const isMatch = await bcrypt.compare(currentPassword, admin.password);
+    if (!isMatch) {
+      return res.status(400).json({ success: false, message: 'Mot de passe actuel incorrect' });
+    }
+    
+    const salt = await bcrypt.genSalt(10);
+    const hashedPassword = await bcrypt.hash(newPassword, salt);
+    admin.password = hashedPassword;
+    
+    await admin.save();
+    
+    res.json({ success: true, message: 'Mot de passe modifié avec succès' });
+  } catch (error) {
+    console.error('Erreur changeAdminPassword:', error);
+    res.status(500).json({ success: false, message: 'Erreur serveur' });
+  }
+};
+
 module.exports = {
   createAdmin,
   getAllUsers,
-  deleteUser
+  deleteUser,
+  getAdminProfile,
+  updateAdminProfile,
+  changeAdminPassword,
 };

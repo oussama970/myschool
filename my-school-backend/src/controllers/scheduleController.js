@@ -1,68 +1,39 @@
 const Schedule = require('../models/Schedule');
 
-// @desc    Sauvegarder l'agenda d'une classe
-// @route   POST /api/teacher/schedule
 const saveSchedule = async (req, res) => {
   try {
     const { className, schedule } = req.body;
     
-    let scheduleDoc = await Schedule.findOne({ className });
+    let existingSchedule = await Schedule.findOne({ className });
     
-    if (scheduleDoc) {
-      scheduleDoc.schedule = schedule;
-      scheduleDoc.updatedAt = Date.now();
-      await scheduleDoc.save();
+    if (existingSchedule) {
+      existingSchedule.schedule = schedule;
+      await existingSchedule.save();
     } else {
-      scheduleDoc = await Schedule.create({
+      await Schedule.create({
         className,
         schedule,
-        updatedAt: Date.now()
+        createdBy: req.user._id,
       });
     }
     
-    res.json({
-      success: true,
-      message: 'Agenda sauvegardé avec succès',
-      schedule: scheduleDoc
-    });
+    res.json({ success: true, message: 'Agenda sauvegardé' });
   } catch (error) {
-    console.error('Erreur sauvegarde agenda:', error);
-    res.status(500).json({ 
-      success: false,
-      message: 'Erreur serveur' 
-    });
+    console.error('Erreur saveSchedule:', error);
+    res.status(500).json({ success: false, message: 'Erreur serveur' });
   }
 };
 
-// @desc    Récupérer l'agenda d'une classe
-// @route   GET /api/teacher/schedule/:className
 const getSchedule = async (req, res) => {
   try {
     const { className } = req.params;
+    const schedule = await Schedule.findOne({ className });
     
-    const scheduleDoc = await Schedule.findOne({ className });
-    
-    if (scheduleDoc) {
-      res.json({
-        success: true,
-        schedule: scheduleDoc.schedule
-      });
-    } else {
-      res.json({
-        success: true,
-        schedule: null
-      });
-    }
+    res.json({ success: true, schedule: schedule?.schedule || {} });
   } catch (error) {
-    console.error('Erreur récupération agenda:', error);
-    res.status(500).json({ 
-      success: false,
-      message: 'Erreur serveur' 
-    });
+    console.error('Erreur getSchedule:', error);
+    res.status(500).json({ success: false, message: 'Erreur serveur' });
   }
 };
 
-module.exports = {
-  saveSchedule,
-  getSchedule
-};
+module.exports = { saveSchedule, getSchedule };

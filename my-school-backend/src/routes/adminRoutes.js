@@ -2,7 +2,6 @@ const express = require('express');
 const router = express.Router();
 const { protect } = require('../middleware/authMiddleware');
 
-// Import des contrôleurs
 const {
   createTeacher,
   getAllTeachers,
@@ -28,14 +27,22 @@ const {
 } = require('../controllers/studentController');
 
 const {
-  getDashboardStats
+  getDashboardStats,
+  getRecentActivities
 } = require('../controllers/dashboardController');
+
+const {
+  getAdminProfile,
+  updateAdminProfile,
+  changeAdminPassword
+} = require('../controllers/adminController');
 
 // Toutes les routes nécessitent une authentification
 router.use(protect);
 
 // Dashboard
 router.get('/dashboard/stats', getDashboardStats);
+router.get('/recent-activities', getRecentActivities);
 
 // Routes enseignants
 router.post('/teachers', createTeacher);
@@ -56,5 +63,10 @@ router.delete('/parents/:id', deleteParent);
 // Routes élèves
 router.get('/students', getAllStudents);
 router.delete('/students/:id', deleteStudent);
+
+// Routes profil admin
+router.get('/profile/:email', getAdminProfile);
+router.put('/profile', updateAdminProfile);
+router.post('/change-password', changeAdminPassword);
 
 module.exports = router;

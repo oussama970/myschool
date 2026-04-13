@@ -35,7 +35,7 @@ const userSchema = new mongoose.Schema({
   subjects: [{
     type: String
   }],
-  assignedClasses: [{
+  assignedClasses: [{  // ← LES CLASSES SONT ICI
     type: String
   }],
   
@@ -126,10 +126,9 @@ const userSchema = new mongoose.Schema({
   }
 });
 
-// Index pour faciliter les recherches (uniquement ceux qui ne sont pas déjà dans unique: true)
-// Les champs avec unique: true créent automatiquement un index
+// Index pour faciliter les recherches
 userSchema.index({ role: 1 });
-userSchema.index({ className: 1 });
+userSchema.index({ className: 1 }); 
 userSchema.index({ createdAt: -1 });
 
 module.exports = mongoose.model('User', userSchema);

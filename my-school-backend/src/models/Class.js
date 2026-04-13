@@ -17,11 +17,12 @@ const classSchema = new mongoose.Schema({
   teacherId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',
-    required: true
+    required: false,
+    default: null
   },
   teacherName: {
     type: String,
-    required: true
+    default: 'Non assigné'
   },
   capacity: {
     type: Number,

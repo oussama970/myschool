@@ -114,86 +114,209 @@ const getTeacherInfo = async (req, res) => {
   try {
     const { email } = req.params;
     const teacher = await User.findOne({ email: email.toLowerCase(), role: 'teacher' }).select('-password');
+    
     if (!teacher) {
       return res.status(404).json({ success: false, message: 'Enseignant non trouvé' });
     }
-    const className = teacher.assignedClasses && teacher.assignedClasses.length > 0 ? teacher.assignedClasses[0] : '';
-    res.json({ success: true, className: className, subjects: teacher.subjects || [], teacherName: teacher.fullName, teacherId: teacher._id });
+    
+    const className = teacher.assignedClasses && teacher.assignedClasses.length > 0 
+      ? teacher.assignedClasses[0] 
+      : '';
+    
+    const assignedClasses = teacher.assignedClasses || [];
+    
+    res.json({ 
+      success: true, 
+      className: className,
+      classes: assignedClasses,
+      subjects: teacher.subjects || [], 
+      teacherName: teacher.fullName, 
+      teacherId: teacher._id,
+      email: teacher.email,
+      phoneNumber: teacher.phoneNumber || ''
+    });
+    
   } catch (error) {
     console.error('Erreur getTeacherInfo:', error);
     res.status(500).json({ success: false, message: 'Erreur serveur' });
   }
 };
 
+const getTeacherClasses = async (req, res) => {
+  try {
+    let teacher;
+    
+    if (req.params.email) {
+      teacher = await User.findOne({ email: req.params.email.toLowerCase(), role: 'teacher' });
+    } 
+    else if (req.user) {
+      teacher = await User.findById(req.user._id);
+    }
+    
+    if (!teacher || teacher.role !== 'teacher') {
+      return res.status(404).json({ success: false, message: 'Enseignant non trouvé' });
+    }
+    
+    const classes = teacher.assignedClasses || [];
+    
+    res.json({ 
+      success: true, 
+      classes: classes 
+    });
+    
+  } catch (error) {
+    console.error('Erreur getTeacherClasses:', error);
+    res.status(500).json({ success: false, message: 'Erreur serveur' });
+  }
+};
+
+const getTeacherNotifications = async (req, res) => {
+  try {
+    const { email } = req.params;
+    const teacher = await User.findOne({ email: email.toLowerCase(), role: 'teacher' });
+    
+    if (!teacher) {
+      return res.status(404).json({ success: false, message: 'Enseignant non trouvé' });
+    }
+    
+    const unreadMessages = 0;
+    const pendingWorks = await Lesson.countDocuments({
+      teacherId: teacher._id,
+      type: 'Devoir'
+    });
+    
+    res.json({
+      success: true,
+      unreadMessages: unreadMessages,
+      pendingWorks: pendingWorks
+    });
+  } catch (error) {
+    console.error('Erreur getTeacherNotifications:', error);
+    res.status(500).json({ success: false, message: 'Erreur serveur' });
+  }
+};
+
+// ✅ FONCTION CORRIGÉE - Récupérer les élèves par classe
 const getStudentsByClass = async (req, res) => {
   try {
     const { className } = req.params;
-    const students = await User.find({ role: 'student', className: className }).select('-password');
+    const decodedClassName = decodeURIComponent(className);
+    
+    console.log('========== GET STUDENTS BY CLASS ==========');
+    console.log('Classe reçue:', className);
+    console.log('Classe décodée:', decodedClassName);
+    
+    const students = await User.find({ 
+      role: 'student', 
+      className: decodedClassName 
+    }).select('-password');
+    
+    console.log(`✅ ${students.length} élèves trouvés`);
+    
+    students.forEach(student => {
+      console.log(`   - ${student.fullName} (${student.email}) - Classe: ${student.className}`);
+    });
+    
     res.json({ success: true, students: students });
   } catch (error) {
-    console.error('Erreur getStudentsByClass:', error);
+    console.error('❌ Erreur getStudentsByClass:', error);
     res.status(500).json({ success: false, message: 'Erreur serveur' });
   }
 };
 
 const getAllStudents = async (req, res) => {
   try {
-    const students = await User.find({ role: 'student' }).select('_id fullName email className parentCode linkedParents');
+    const students = await User.find({ role: 'student' }).select('-password');
+    console.log(`📚 ${students.length} élèves trouvés au total`);
     res.json({ success: true, students: students });
   } catch (error) {
-    console.error('Erreur getAllStudents:', error);
+    console.error('❌ Erreur getAllStudents:', error);
     res.status(500).json({ success: false, message: 'Erreur serveur' });
   }
 };
 
+// ✅ FONCTION CORRIGÉE - Ajouter des élèves à une classe (met à jour className dans User)
 const addStudentsToClass = async (req, res) => {
   try {
     const { className, studentIds } = req.body;
+    
+    console.log('========== ADD STUDENTS TO CLASS ==========');
+    console.log('Classe:', className);
+    console.log('IDs élèves:', studentIds);
+    
     let classObj = await Class.findOne({ name: className });
     if (!classObj) {
       classObj = await Class.create({
-        name: className, level: className.split(' ')[0] || '', group: className.split(' ')[1] || '',
-        teacherId: req.user._id, teacherName: req.user.fullName, capacity: 30, room: '', studentCount: 0, students: []
+        name: className, 
+        level: className.split(' ')[0] || '', 
+        group: className.split(' ')[1] || '',
+        teacherId: req.user._id, 
+        teacherName: req.user.fullName, 
+        capacity: 30, 
+        room: '', 
+        studentCount: 0, 
+        students: []
       });
     }
+    
     let addedCount = 0;
+    
     for (const studentId of studentIds) {
       const student = await User.findById(studentId);
       if (student && student.role === 'student') {
-        student.className = className;
-        await student.save();
+        
+        // ✅ CRUCIAL: Mettre à jour className dans User
+        if (student.className !== className) {
+          student.className = className;
+          await student.save();
+          console.log(`✅ Élève ${student.fullName} mis à jour dans Users avec className: ${className}`);
+        }
+        
         if (!classObj.students.includes(student._id)) {
           classObj.students.push(student._id);
           addedCount++;
         }
       }
     }
+    
     classObj.studentCount = classObj.students.length;
     await classObj.save();
-    res.json({ success: true, message: `${addedCount} élève(s) ajouté(s)`, addedCount });
+    
+    res.json({ 
+      success: true, 
+      message: `${addedCount} élève(s) ajouté(s) à la classe ${className}`,
+      addedCount
+    });
   } catch (error) {
-    console.error('Erreur addStudentsToClass:', error);
+    console.error('❌ Erreur addStudentsToClass:', error);
     res.status(500).json({ success: false, message: 'Erreur serveur' });
   }
 };
 
+// ✅ FONCTION CORRIGÉE - Retirer un élève d'une classe
 const removeStudentFromClass = async (req, res) => {
   try {
     const { studentId, className } = req.body;
+    
+    console.log(`🗑️ Retrait élève ${studentId} de la classe ${className}`);
+    
     const student = await User.findById(studentId);
     if (student && student.role === 'student') {
       student.className = '';
       await student.save();
+      console.log(`✅ Élève ${student.fullName} retiré de la classe (className vidé)`);
     }
+    
     const classObj = await Class.findOne({ name: className });
     if (classObj) {
       classObj.students = classObj.students.filter(id => id.toString() !== studentId);
       classObj.studentCount = classObj.students.length;
       await classObj.save();
     }
+    
     res.json({ success: true, message: 'Élève retiré de la classe' });
   } catch (error) {
-    console.error('Erreur removeStudentFromClass:', error);
+    console.error('❌ Erreur removeStudentFromClass:', error);
     res.status(500).json({ success: false, message: 'Erreur serveur' });
   }
 };
@@ -214,14 +337,33 @@ const getLessons = async (req, res) => {
 const addLesson = async (req, res) => {
   try {
     const { title, subject, description, type, className, deadline, files } = req.body;
-    if (!title || !subject || !type || !className) {
+    
+    if (!title || !type || !className) {
       return res.status(400).json({ success: false, message: 'Champs requis manquants' });
     }
+    
+    let deadlineDate = null;
+    if (deadline && deadline.trim() !== '') {
+      try {
+        const parts = deadline.split('/');
+        if (parts.length === 3) {
+          deadlineDate = new Date(`${parts[2]}-${parts[1]}-${parts[0]}`);
+        }
+      } catch (e) {}
+    }
+    
     const lesson = await Lesson.create({
-      title, subject, description: description || '', type, className,
-      deadline: deadline || null, files: files || [],
-      teacherId: req.user._id, teacherName: req.user.fullName
+      title, 
+      subject: subject || '', 
+      description: description || '', 
+      type, 
+      className,
+      deadline: deadlineDate, 
+      files: files || [],
+      teacherId: req.user._id, 
+      teacherName: req.user.fullName
     });
+    
     res.status(201).json({ success: true, lesson: lesson });
   } catch (error) {
     console.error('Erreur addLesson:', error);
@@ -234,8 +376,6 @@ const updateLesson = async (req, res) => {
     const { id } = req.params;
     const { title, subject, description, type, deadline, files } = req.body;
 
-    console.log('📝 Modification ID:', id);
-
     if (!id) {
       return res.status(400).json({ success: false, message: 'ID manquant' });
     }
@@ -244,15 +384,25 @@ const updateLesson = async (req, res) => {
     if (!lesson) {
       return res.status(404).json({ success: false, message: 'Leçon non trouvée' });
     }
+    
+    let deadlineDate = null;
+    if (deadline && deadline.trim() !== '') {
+      try {
+        const parts = deadline.split('/');
+        if (parts.length === 3) {
+          deadlineDate = new Date(`${parts[2]}-${parts[1]}-${parts[0]}`);
+        }
+      } catch (e) {}
+    }
 
     const updatedLesson = await Lesson.findByIdAndUpdate(
       id,
       {
         title: title || lesson.title,
-        subject: subject || lesson.subject,
+        subject: subject !== undefined ? subject : lesson.subject,
         description: description !== undefined ? description : lesson.description,
         type: type || lesson.type,
-        deadline: deadline !== undefined ? deadline : lesson.deadline,
+        deadline: deadlineDate,
         files: files || lesson.files,
       },
       { new: true }
@@ -294,12 +444,22 @@ const getAgenda = async (req, res) => {
 const addGrade = async (req, res) => {
   try {
     const { studentId, subject, grade, appreciation } = req.body;
+    
     const student = await User.findById(studentId);
     if (!student || student.role !== 'student') {
       return res.status(404).json({ success: false, message: 'Élève non trouvé' });
     }
+    
     if (!student.grades) student.grades = [];
-    student.grades.push({ subject, grade, appreciation: appreciation || '', date: new Date(), teacherId: req.user._id, teacherName: req.user.fullName });
+    student.grades.push({ 
+      subject, 
+      grade, 
+      appreciation: appreciation || '', 
+      date: new Date(), 
+      teacherId: req.user._id, 
+      teacherName: req.user.fullName 
+    });
+    
     await student.save();
     res.status(201).json({ success: true, message: 'Note ajoutée' });
   } catch (error) {
@@ -311,12 +471,20 @@ const addGrade = async (req, res) => {
 const addAbsence = async (req, res) => {
   try {
     const { studentId, date, justified, reason } = req.body;
+    
     const student = await User.findById(studentId);
     if (!student || student.role !== 'student') {
       return res.status(404).json({ success: false, message: 'Élève non trouvé' });
     }
+    
     if (!student.absences) student.absences = [];
-    student.absences.push({ date: new Date(date), justified: justified || false, reason: reason || '', declaredBy: req.user.fullName });
+    student.absences.push({ 
+      date: new Date(date), 
+      justified: justified || false, 
+      reason: reason || '', 
+      declaredBy: req.user.fullName 
+    });
+    
     await student.save();
     res.status(201).json({ success: true, message: 'Absence enregistrée' });
   } catch (error) {
@@ -331,6 +499,8 @@ module.exports = {
   getTeachersList,
   deleteTeacher,
   getTeacherInfo,
+  getTeacherClasses,
+  getTeacherNotifications,
   getStudentsByClass,
   getAllStudents,
   addStudentsToClass,

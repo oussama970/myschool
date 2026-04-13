@@ -12,5 +12,6 @@
         "statusBar.noFolderBackground": "#4F1D24",
         "statusBar.noFolderForeground": "#FEFBFC"
     },
-    "cmake.sourceDirectory": "C:/Users/oussa/Desktop/my school PFE/my_school_frontend/linux"
+    "cmake.sourceDirectory": "C:/Users/oussa/Desktop/my school PFE/my_school_frontend/linux",
+    "java.configuration.updateBuildConfiguration": "interactive"
 }

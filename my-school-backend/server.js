@@ -87,12 +87,6 @@ app.use((err, req, res, next) => {
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
   console.log(`\n🚀 Serveur démarré sur le port ${PORT}`);
-  console.log(`📍 URL: http://localhost:${PORT}`);
-  console.log(`🔧 Environnement: ${process.env.NODE_ENV || 'development'}`);
-  console.log(`📡 Routes disponibles:`);
-  console.log(`   - POST   /api/auth/register`);
-  console.log(`   - POST   /api/auth/login`);
-  console.log(`   - GET    /api/teacher/info/:email`);
-  console.log(`   - GET    /api/admin/dashboard/stats`);
-  console.log(`\n✨ API prête à être utilisée\n`);
+  
+
 });
