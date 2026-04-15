@@ -42,9 +42,6 @@ class _TeacherClassScreenState extends State<TeacherClassScreen> {
       
       final result = await ApiService.getStudentsByClass(widget.className);
       
-      print('Réponse API - success: ${result['success']}');
-      print('Réponse API - students: ${result['students']}');
-      
       if (result['success']) {
         final students = result['students'] ?? [];
         print('✅ ${students.length} élèves trouvés');

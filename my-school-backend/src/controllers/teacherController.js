@@ -196,7 +196,7 @@ const getTeacherNotifications = async (req, res) => {
   }
 };
 
-// ✅ FONCTION CORRIGÉE - Récupérer les élèves par classe
+// ✅ FONCTION CORRIGÉE - Récupère les élèves par classe
 const getStudentsByClass = async (req, res) => {
   try {
     const { className } = req.params;
@@ -235,7 +235,7 @@ const getAllStudents = async (req, res) => {
   }
 };
 
-// ✅ FONCTION CORRIGÉE - Ajouter des élèves à une classe (met à jour className dans User)
+// ✅ FONCTION CORRIGÉE - Ajoute des élèves à une classe et synchronise className
 const addStudentsToClass = async (req, res) => {
   try {
     const { className, studentIds } = req.body;
@@ -267,11 +267,24 @@ const addStudentsToClass = async (req, res) => {
         
         // ✅ CRUCIAL: Mettre à jour className dans User
         if (student.className !== className) {
+          // Si l'élève était dans une autre classe, le retirer de cette classe
+          if (student.className && student.className !== '') {
+            const oldClass = await Class.findOne({ name: student.className });
+            if (oldClass) {
+              oldClass.students = oldClass.students.filter(id => id.toString() !== studentId);
+              oldClass.studentCount = oldClass.students.length;
+              await oldClass.save();
+              console.log(`🗑️ Élève ${student.fullName} retiré de l'ancienne classe ${student.className}`);
+            }
+          }
+          
+          // Mettre à jour la classe de l'élève
           student.className = className;
           await student.save();
-          console.log(`✅ Élève ${student.fullName} mis à jour dans Users avec className: ${className}`);
+          console.log(`✅ Élève ${student.fullName} mis à jour avec className: ${className}`);
         }
         
+        // Ajouter l'élève à la classe dans Class collection
         if (!classObj.students.includes(student._id)) {
           classObj.students.push(student._id);
           addedCount++;
@@ -281,6 +294,8 @@ const addStudentsToClass = async (req, res) => {
     
     classObj.studentCount = classObj.students.length;
     await classObj.save();
+    
+    console.log(`✅ ${addedCount} élève(s) ajouté(s) à la classe ${className}`);
     
     res.json({ 
       success: true, 
@@ -293,7 +308,7 @@ const addStudentsToClass = async (req, res) => {
   }
 };
 
-// ✅ FONCTION CORRIGÉE - Retirer un élève d'une classe
+// ✅ FONCTION CORRIGÉE - Retire un élève d'une classe
 const removeStudentFromClass = async (req, res) => {
   try {
     const { studentId, className } = req.body;

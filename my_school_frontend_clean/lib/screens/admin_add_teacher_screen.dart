@@ -33,14 +33,14 @@ class _AdminAddTeacherScreenState extends State<AdminAddTeacherScreen> {
     'Sport': false,
   };
 
-  // Classes de l'école primaire tunisienne
+  // Changé: Classes au format "1ère année A", "1ère année B", etc.
   final List<String> _availableClasses = [
-    '1ère A', '1ère B', 
-    '2ème A', '2ème B', 
-    '3ème A', '3ème B', 
-    '4ème A', '4ème B', 
-    '5ème A', '5ème B', 
-    '6ème A', '6ème B'
+    '1ère année A', '1ère année B', 
+    '2ème année A', '2ème année B', 
+    '3ème année A', '3ème année B', 
+    '4ème année A', '4ème année B', 
+    '5ème année A', '5ème année B', 
+    '6ème année A', '6ème année B'
   ];
   
   Map<String, bool> _selectedClasses = {};
