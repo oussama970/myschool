@@ -89,6 +89,7 @@ class _AdminClassesScreenState extends State<AdminClassesScreen> {
                   ),
                 );
                 _loadClasses();
+                _loadAllStudents();
               } else {
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(
@@ -100,6 +101,56 @@ class _AdminClassesScreenState extends State<AdminClassesScreen> {
             },
             style: TextButton.styleFrom(foregroundColor: Colors.red),
             child: const Text('Supprimer'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // Méthode pour retirer un élève de la classe
+  Future<void> _removeStudentFromClass(String studentId, String studentName, String className) async {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Confirmation'),
+        content: Text('Voulez-vous vraiment retirer $studentName de la classe $className ?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Annuler'),
+          ),
+          TextButton(
+            onPressed: () async {
+              Navigator.pop(context);
+              setState(() => _isLoading = true);
+              
+              final result = await ApiService.removeStudentFromClass(
+                studentId: studentId,
+                className: className,
+              );
+              
+              if (result['success']) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text('✅ $studentName retiré de la classe $className'),
+                    backgroundColor: Colors.green,
+                  ),
+                );
+                await _loadClasses();
+                await _loadAllStudents();
+                Navigator.pop(context); // Fermer la boîte de dialogue
+              } else {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text(result['message'] ?? 'Erreur lors du retrait'),
+                    backgroundColor: Colors.red,
+                  ),
+                );
+                setState(() => _isLoading = false);
+              }
+            },
+            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            child: const Text('RETIRER'),
           ),
         ],
       ),
@@ -131,19 +182,21 @@ class _AdminClassesScreenState extends State<AdminClassesScreen> {
     );
   }
 
-  void _showAddStudentsDialog(Map<String, dynamic> classe) {
+  // Dialogue pour gérer les élèves (ajouter ET supprimer)
+  void _showManageStudentsDialog(Map<String, dynamic> classe) {
     final String className = classe['name'];
     final List<String> currentStudentIds = (classe['students'] as List?)?.map((s) => s.toString()).toList() ?? [];
-    
-    // Filtrer les élèves disponibles (sans classe)
-    List<dynamic> availableStudents = _allStudents.where((student) {
-      String studentClass = student['className'] ?? '';
-      return studentClass.isEmpty || studentClass == null || studentClass == '';
-    }).toList();
     
     // Élèves déjà dans cette classe
     List<dynamic> studentsInClass = _allStudents.where((student) {
       return currentStudentIds.contains(student['_id'].toString());
+    }).toList();
+    
+    // Filtrer les élèves disponibles (sans classe)
+    List<dynamic> availableStudents = _allStudents.where((student) {
+      String studentClass = student['className'] ?? '';
+      return (studentClass.isEmpty || studentClass == null || studentClass == '') && 
+             !currentStudentIds.contains(student['_id'].toString());
     }).toList();
     
     List<String> selectedStudentIds = List.from(currentStudentIds);
@@ -180,7 +233,7 @@ class _AdminClassesScreenState extends State<AdminClassesScreen> {
                     Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 20),
                       child: Text(
-                        'Ajouter des élèves - ${classe['name']}',
+                        'Gérer les élèves - ${classe['name']}',
                         style: const TextStyle(
                           fontSize: 20,
                           fontWeight: FontWeight.bold,
@@ -203,7 +256,7 @@ class _AdminClassesScreenState extends State<AdminClassesScreen> {
                               borderRadius: BorderRadius.circular(20),
                             ),
                             child: Text(
-                              '${selectedStudentIds.length} élèves dans la classe',
+                              '${studentsInClass.length} élèves dans la classe',
                               style: const TextStyle(
                                 color: Color(0xFF0288D1),
                                 fontWeight: FontWeight.w500,
@@ -231,47 +284,61 @@ class _AdminClassesScreenState extends State<AdminClassesScreen> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
+                            // SECTION: Élèves déjà dans la classe (avec suppression)
                             if (studentsInClass.isNotEmpty) ...[
                               const Padding(
                                 padding: EdgeInsets.symmetric(horizontal: 20, vertical: 8),
                                 child: Text(
-                                  '📌 Élèves déjà dans cette classe',
-                                  style: TextStyle(
-                                    fontSize: 14,
-                                    fontWeight: FontWeight.bold,
-                                    color: Color(0xFF4CAF9F),
-                                  ),
-                                ),
-                              ),
-                              ...studentsInClass.map((student) => CheckboxListTile(
-                                value: true,
-                                onChanged: (checked) {
-                                  setModalState(() {
-                                    if (checked == false) {
-                                      selectedStudentIds.remove(student['_id'].toString());
-                                    }
-                                  });
-                                },
-                                title: Text(
-                                  student['fullName'] ?? 'Sans nom',
-                                  style: const TextStyle(fontWeight: FontWeight.w500),
-                                ),
-                                subtitle: Text(student['email'] ?? ''),
-                                secondary: const Icon(Icons.check_circle, color: Color(0xFF4CAF9F)),
-                                controlAffinity: ListTileControlAffinity.leading,
-                              )),
-                              const Divider(),
-                            ],
-                            
-                            if (availableStudents.isNotEmpty) ...[
-                              const Padding(
-                                padding: EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-                                child: Text(
-                                  '➕ Élèves disponibles (sans classe)',
+                                  '📌 Élèves dans cette classe',
                                   style: TextStyle(
                                     fontSize: 14,
                                     fontWeight: FontWeight.bold,
                                     color: Color(0xFF0288D1),
+                                  ),
+                                ),
+                              ),
+                              ...studentsInClass.map((student) => Card(
+                                margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                                child: ListTile(
+                                  leading: CircleAvatar(
+                                    backgroundColor: const Color(0xFF0288D1).withOpacity(0.1),
+                                    child: Text(
+                                      (student['fullName']?.substring(0, 1) ?? '?').toUpperCase(),
+                                      style: const TextStyle(
+                                        color: Color(0xFF0288D1),
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                  ),
+                                  title: Text(
+                                    student['fullName'] ?? 'Sans nom',
+                                    style: const TextStyle(fontWeight: FontWeight.w500),
+                                  ),
+                                  subtitle: Text(student['email'] ?? ''),
+                                  trailing: IconButton(
+                                    icon: const Icon(Icons.delete_outline, color: Colors.red),
+                                    onPressed: () => _removeStudentFromClass(
+                                      student['_id'],
+                                      student['fullName'],
+                                      className,
+                                    ),
+                                    tooltip: 'Retirer de la classe',
+                                  ),
+                                ),
+                              )),
+                              const Divider(),
+                            ],
+                            
+                            // SECTION: Ajouter des élèves
+                            if (availableStudents.isNotEmpty) ...[
+                              const Padding(
+                                padding: EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                                child: Text(
+                                  '➕ Ajouter des élèves',
+                                  style: TextStyle(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.bold,
+                                    color: Color(0xFF4CAF9F),
                                   ),
                                 ),
                               ),
@@ -291,7 +358,7 @@ class _AdminClassesScreenState extends State<AdminClassesScreen> {
                                   style: const TextStyle(fontWeight: FontWeight.w500),
                                 ),
                                 subtitle: Text(student['email'] ?? ''),
-                                secondary: const Icon(Icons.person_add, color: Color(0xFF0288D1)),
+                                secondary: const Icon(Icons.person_add, color: Color(0xFF4CAF9F)),
                                 controlAffinity: ListTileControlAffinity.leading,
                               )),
                             ],
@@ -581,27 +648,32 @@ class _AdminClassesScreenState extends State<AdminClassesScreen> {
                                       ),
                                       Row(
                                         children: [
+                                          // Icône Détails
                                           IconButton(
                                             icon: const Icon(
                                               Icons.visibility,
                                               color: Color(0xFF0288D1),
                                             ),
                                             onPressed: () => _showClassDetails(classe),
+                                            tooltip: 'Détails',
                                           ),
+                                          // Icône Gérer les élèves (Ajouter + Supprimer)
                                           IconButton(
                                             icon: const Icon(
-                                              Icons.person_add,
-                                              color: Color(0xFF4CAF9F),
+                                              Icons.people,
+                                              color: Color(0xFF0288D1),
                                             ),
-                                            onPressed: () => _showAddStudentsDialog(classe),
-                                            tooltip: 'Ajouter des élèves',
+                                            onPressed: () => _showManageStudentsDialog(classe),
+                                            tooltip: 'Gérer les élèves',
                                           ),
+                                          // Icône Supprimer la classe
                                           IconButton(
                                             icon: const Icon(
                                               Icons.delete,
                                               color: Colors.red,
                                             ),
                                             onPressed: () => _deleteClass(classe['_id']),
+                                            tooltip: 'Supprimer la classe',
                                           ),
                                         ],
                                       ),

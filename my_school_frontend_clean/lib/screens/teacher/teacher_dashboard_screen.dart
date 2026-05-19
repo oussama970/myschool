@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:my_school_frontend/services/api_service.dart';
-import 'teacher_agenda_screen.dart';
 import 'teacher_lessons_screen.dart';
-import 'teacher_class_screen.dart';
 import 'teacher_messages_screen.dart';
+import 'teacher_class_screen.dart';
+import 'teacher_devoir_screen.dart';
 import 'teacher_profile_screen.dart';
+import 'teacher_events_screen.dart';
 
 class TeacherDashboardScreen extends StatefulWidget {
   final String email;
@@ -29,24 +30,52 @@ class _TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
   bool _isLoadingClasses = false;
   int _unreadMessages = 0;
   int _pendingWorks = 0;
-  
+  int _pendingEvents = 0;
+  String _teacherId = '';
+  String _teacherSubject = '';
+  List<String> _teacherSubjects = [];
+
   final List<Map<String, dynamic>> _menuItems = [
     {'icon': Icons.dashboard, 'label': 'Accueil', 'page': 0},
     {'icon': Icons.menu_book, 'label': 'Cours', 'page': 1},
     {'icon': Icons.message, 'label': 'Messages', 'page': 2},
     {'icon': Icons.class_, 'label': 'Classe', 'page': 3},
-    {'icon': Icons.calendar_today, 'label': 'Agenda', 'page': 4},
-    {'icon': Icons.person, 'label': 'Profil', 'page': 5},
+    {'icon': Icons.calendar_today, 'label': 'Devoirs', 'page': 4},
+    {'icon': Icons.event, 'label': 'Événements', 'page': 5},
+    {'icon': Icons.person, 'label': 'Profil', 'page': 6},
   ];
 
-  late List<Widget> _pages;
+  // 👈 CHANGEMENT: initialisation directe au lieu de 'late'
+  List<Widget> _pages = [];
 
   @override
   void initState() {
     super.initState();
     _currentClassName = widget.className;
+    // Initialisation temporaire pour éviter l'erreur
+    _pages = [const Center(child: CircularProgressIndicator())];
+    _loadTeacherInfo();
     _loadTeacherClasses();
     _loadNotifications();
+  }
+
+  Future<void> _loadTeacherInfo() async {
+    try {
+      final result = await ApiService.getTeacherInfo(widget.email);
+      if (result['success']) {
+        setState(() {
+          _teacherId = result['teacherId'] ?? '';
+          _teacherSubjects = List<String>.from(result['subjects'] ?? []);
+          if (_teacherSubjects.isNotEmpty) {
+            _teacherSubject = _teacherSubjects[0];
+          }
+        });
+        print('✅ ID Enseignant: $_teacherId');
+        print('✅ Matières: $_teacherSubjects');
+      }
+    } catch (e) {
+      print('❌ Erreur chargement ID enseignant: $e');
+    }
   }
 
   void _initPages() {
@@ -54,23 +83,42 @@ class _TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
       TeacherHomePage(
         teacherName: widget.teacherName,
         className: _currentClassName,
-        unreadMessages: _unreadMessages,
-        pendingWorks: _pendingWorks,
+        teacherSubject: _teacherSubject,
+        onAddCourse: () => _navigateToAddCourse(),
+        onAddHomework: () => _navigateToAddHomework(),
+        onGoToMessages: () => _navigateToMessages(),
+        onGoToClass: () => _navigateToClass(),
+        onGoToProfile: () => _navigateToProfile(),
+        onGoToEvents: () => _navigateToEvents(),
       ),
       TeacherLessonsScreen(
         teacherEmail: widget.email,
         className: _currentClassName,
+        teacherSubject: _teacherSubject,
       ),
       TeacherMessagesScreen(
         teacherEmail: widget.email,
         className: _currentClassName,
+        teacherId: _teacherId,
+        onUnreadCountChanged: _updateUnreadMessagesCount,
       ),
       TeacherClassScreen(
         teacherEmail: widget.email,
         className: _currentClassName,
+        teacherId: _teacherId,
+        teacherName: widget.teacherName,
+        teacherSubject: _teacherSubject,
       ),
-      TeacherAgendaScreen(
+      TeacherDevoirScreen(
         teacherEmail: widget.email,
+        className: _currentClassName,
+        teacherId: _teacherId,
+        teacherSubject: _teacherSubject,
+        teacherName: widget.teacherName,
+      ),
+      TeacherEventsScreen(
+        teacherId: _teacherId,
+        teacherName: widget.teacherName,
         className: _currentClassName,
       ),
       TeacherProfileScreen(
@@ -79,40 +127,103 @@ class _TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
         className: _currentClassName,
       ),
     ];
+    setState(() {});
+  }
+
+  void _navigateToAddCourse() {
+    setState(() {
+      _selectedIndex = 1;
+    });
+  }
+
+  void _navigateToAddHomework() {
+    setState(() {
+      _selectedIndex = 4;
+    });
+  }
+
+  void _navigateToMessages() {
+    setState(() {
+      _selectedIndex = 2;
+    });
+  }
+
+  void _navigateToClass() {
+    setState(() {
+      _selectedIndex = 3;
+    });
+  }
+
+  void _navigateToProfile() {
+    setState(() {
+      _selectedIndex = 6;
+    });
+  }
+
+  void _navigateToEvents() {
+    setState(() {
+      _selectedIndex = 5;
+    });
+  }
+
+  void _updateUnreadMessagesCount(int count) {
+    if (mounted) {
+      setState(() {
+        _unreadMessages = count;
+      });
+    }
   }
 
   void _updatePages() {
-    setState(() {
-      _pages = [
-        TeacherHomePage(
-          teacherName: widget.teacherName,
-          className: _currentClassName,
-          unreadMessages: _unreadMessages,
-          pendingWorks: _pendingWorks,
-        ),
-        TeacherLessonsScreen(
-          teacherEmail: widget.email,
-          className: _currentClassName,
-        ),
-        TeacherMessagesScreen(
-          teacherEmail: widget.email,
-          className: _currentClassName,
-        ),
-        TeacherClassScreen(
-          teacherEmail: widget.email,
-          className: _currentClassName,
-        ),
-        TeacherAgendaScreen(
-          teacherEmail: widget.email,
-          className: _currentClassName,
-        ),
-        TeacherProfileScreen(
-          teacherEmail: widget.email,
-          teacherName: widget.teacherName,
-          className: _currentClassName,
-        ),
-      ];
-    });
+    _pages = [
+      TeacherHomePage(
+        teacherName: widget.teacherName,
+        className: _currentClassName,
+        teacherSubject: _teacherSubject,
+        onAddCourse: () => _navigateToAddCourse(),
+        onAddHomework: () => _navigateToAddHomework(),
+        onGoToMessages: () => _navigateToMessages(),
+        onGoToClass: () => _navigateToClass(),
+        onGoToProfile: () => _navigateToProfile(),
+        onGoToEvents: () => _navigateToEvents(),
+      ),
+      TeacherLessonsScreen(
+        teacherEmail: widget.email,
+        className: _currentClassName,
+        teacherSubject: _teacherSubject,
+      ),
+      TeacherMessagesScreen(
+        teacherEmail: widget.email,
+        className: _currentClassName,
+        teacherId: _teacherId,
+        onUnreadCountChanged: _updateUnreadMessagesCount,
+      ),
+      TeacherClassScreen(
+        teacherEmail: widget.email,
+        className: _currentClassName,
+        teacherId: _teacherId,
+        teacherName: widget.teacherName,
+        teacherSubject: _teacherSubject,
+      ),
+      TeacherDevoirScreen(
+        teacherEmail: widget.email,
+        className: _currentClassName,
+        teacherId: _teacherId,
+        teacherSubject: _teacherSubject,
+        teacherName: widget.teacherName,
+      ),
+      TeacherEventsScreen(
+        teacherId: _teacherId,
+        teacherName: widget.teacherName,
+        className: _currentClassName,
+      ),
+      TeacherProfileScreen(
+        teacherEmail: widget.email,
+        teacherName: widget.teacherName,
+        className: _currentClassName,
+      ),
+    ];
+    setState(() {});
   }
 
   Future<void> _loadNotifications() async {
@@ -122,14 +233,15 @@ class _TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
         setState(() {
           _unreadMessages = result['unreadMessages'] ?? 0;
           _pendingWorks = result['pendingWorks'] ?? 0;
+          _pendingEvents = result['pendingEvents'] ?? 0;
         });
       }
     } catch (e) {
       print('Erreur chargement notifications: $e');
-      // Valeurs par défaut en cas d'erreur
       setState(() {
         _unreadMessages = 0;
         _pendingWorks = 0;
+        _pendingEvents = 0;
       });
     }
   }
@@ -377,10 +489,15 @@ class _TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
               ),
             ),
           ),
+
+          // Contenu principal
           Expanded(
-            child: _pages[_selectedIndex],
+            child: _pages.isEmpty
+                ? const Center(child: CircularProgressIndicator())
+                : _pages[_selectedIndex],
           ),
-          // Barre de navigation
+
+          // Bottom Navigation Bar
           Container(
             decoration: BoxDecoration(
               color: Colors.white,
@@ -408,33 +525,61 @@ class _TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         Stack(
+                          clipBehavior: Clip.none,
                           children: [
                             Icon(
                               _menuItems[index]['icon'],
                               color: isSelected
                                   ? const Color(0xFF0288D1)
                                   : Colors.grey,
-                              size: 20,
+                              size: 24,
                             ),
+                            // Badge pour les messages non lus
                             if (index == 2 && _unreadMessages > 0)
                               Positioned(
-                                right: -6,
-                                top: -6,
+                                right: -8,
+                                top: -8,
                                 child: Container(
-                                  padding: const EdgeInsets.all(2),
+                                  padding: const EdgeInsets.all(4),
                                   decoration: const BoxDecoration(
                                     color: Colors.red,
                                     shape: BoxShape.circle,
                                   ),
                                   constraints: const BoxConstraints(
-                                    minWidth: 14,
-                                    minHeight: 14,
+                                    minWidth: 18,
+                                    minHeight: 18,
                                   ),
                                   child: Text(
-                                    '$_unreadMessages',
+                                    _unreadMessages > 9 ? '9+' : '$_unreadMessages',
                                     style: const TextStyle(
                                       color: Colors.white,
-                                      fontSize: 8,
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                    textAlign: TextAlign.center,
+                                  ),
+                                ),
+                              ),
+                            // Badge pour les événements en attente
+                            if (index == 5 && _pendingEvents > 0)
+                              Positioned(
+                                right: -8,
+                                top: -8,
+                                child: Container(
+                                  padding: const EdgeInsets.all(4),
+                                  decoration: const BoxDecoration(
+                                    color: Colors.orange,
+                                    shape: BoxShape.circle,
+                                  ),
+                                  constraints: const BoxConstraints(
+                                    minWidth: 18,
+                                    minHeight: 18,
+                                  ),
+                                  child: Text(
+                                    _pendingEvents > 9 ? '9+' : '$_pendingEvents',
+                                    style: const TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 10,
                                       fontWeight: FontWeight.bold,
                                     ),
                                     textAlign: TextAlign.center,
@@ -443,11 +588,11 @@ class _TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
                               ),
                           ],
                         ),
-                        const SizedBox(height: 2),
+                        const SizedBox(height: 4),
                         Text(
                           _menuItems[index]['label'],
                           style: TextStyle(
-                            fontSize: 10,
+                            fontSize: 11,
                             color: isSelected
                                 ? const Color(0xFF0288D1)
                                 : Colors.grey,
@@ -466,19 +611,29 @@ class _TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
   }
 }
 
-// Page d'accueil - CORRIGÉE
+// Page d'accueil
 class TeacherHomePage extends StatelessWidget {
   final String teacherName;
   final String className;
-  final int unreadMessages;
-  final int pendingWorks;
+  final String teacherSubject;
+  final VoidCallback onAddCourse;
+  final VoidCallback onAddHomework;
+  final VoidCallback onGoToMessages;
+  final VoidCallback onGoToClass;
+  final VoidCallback onGoToProfile;
+  final VoidCallback onGoToEvents;
 
   const TeacherHomePage({
     super.key,
     required this.teacherName,
     required this.className,
-    required this.unreadMessages,
-    required this.pendingWorks,
+    required this.teacherSubject,
+    required this.onAddCourse,
+    required this.onAddHomework,
+    required this.onGoToMessages,
+    required this.onGoToClass,
+    required this.onGoToProfile,
+    required this.onGoToEvents,
   });
 
   @override
@@ -494,48 +649,76 @@ class TeacherHomePage extends StatelessWidget {
             // Carte de bienvenue
             Container(
               width: double.infinity,
-              padding: const EdgeInsets.all(16),
+              padding: const EdgeInsets.all(24),
               decoration: BoxDecoration(
                 gradient: const LinearGradient(
                   colors: [Color(0xFF0288D1), Color(0xFF4FC3F7)],
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
                 ),
-                borderRadius: BorderRadius.circular(16),
+                borderRadius: BorderRadius.circular(24),
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    '📚 Bonjour, $teacherName !',
-                    style: const TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    '${DateTime.now().day}/${DateTime.now().month}/${DateTime.now().year}',
-                    style: const TextStyle(
-                      fontSize: 12,
-                      color: Colors.white70,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
                   Row(
                     children: [
-                      const Icon(
-                        Icons.class_,
-                        size: 12,
-                        color: Colors.white70,
+                      Container(
+                        width: 50,
+                        height: 50,
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(25),
+                        ),
+                        child: const Icon(
+                          Icons.person,
+                          color: Color(0xFF0288D1),
+                          size: 28,
+                        ),
                       ),
-                      const SizedBox(width: 4),
-                      Text(
-                        className,
-                        style: const TextStyle(
-                          fontSize: 12,
-                          color: Colors.white70,
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Bonjour,',
+                              style: TextStyle(
+                                fontSize: 14,
+                                color: Colors.white.withOpacity(0.8),
+                              ),
+                            ),
+                            Text(
+                              teacherName,
+                              style: const TextStyle(
+                                fontSize: 20,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.white,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 24),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _buildStatCard(
+                          icon: Icons.class_,
+                          label: 'Classe',
+                          value: className,
+                          color: Colors.white,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: _buildStatCard(
+                          icon: Icons.menu_book,
+                          label: 'Matière',
+                          value: teacherSubject,
+                          color: Colors.white,
                         ),
                       ),
                     ],
@@ -544,44 +727,20 @@ class TeacherHomePage extends StatelessWidget {
               ),
             ),
 
-            const SizedBox(height: 12),
+            const SizedBox(height: 20),
 
-            // Cartes de statistiques
-            Row(
-              children: [
-                Expanded(
-                  child: _buildInfoCard(
-                    title: 'Messages non lus',
-                    value: '$unreadMessages',
-                    icon: Icons.message,
-                    color: Colors.blue,
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: _buildInfoCard(
-                    title: 'Travaux à corriger',
-                    value: '$pendingWorks',
-                    icon: Icons.assignment,
-                    color: Colors.orange,
-                  ),
-                ),
-              ],
-            ),
-
-            const SizedBox(height: 12),
-
-            // Agenda du jour
+            // Menu rapide
             Container(
-              padding: const EdgeInsets.all(12),
+              width: double.infinity,
+              padding: const EdgeInsets.all(20),
               decoration: BoxDecoration(
                 color: Colors.white,
-                borderRadius: BorderRadius.circular(16),
+                borderRadius: BorderRadius.circular(24),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.grey.withOpacity(0.05),
-                    blurRadius: 8,
-                    offset: const Offset(0, 2),
+                    color: Colors.grey.withOpacity(0.08),
+                    blurRadius: 15,
+                    offset: const Offset(0, 5),
                   ),
                 ],
               ),
@@ -589,34 +748,91 @@ class TeacherHomePage extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   const Text(
-                    '📅 AUJOURD\'HUI',
+                    '📱 Menu rapide',
                     style: TextStyle(
-                      fontSize: 14,
+                      fontSize: 18,
                       fontWeight: FontWeight.bold,
                       color: Color(0xFF01579B),
                     ),
                   ),
+                  const SizedBox(height: 20),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _buildMenuItem(
+                          icon: Icons.add_circle_outline,
+                          label: 'Cours',
+                          color: const Color(0xFF0288D1),
+                          onTap: onAddCourse,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: _buildMenuItem(
+                          icon: Icons.calendar_today,
+                          label: 'Devoir',
+                          color: Colors.orange,
+                          onTap: onAddHomework,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: _buildMenuItem(
+                          icon: Icons.message,
+                          label: 'Messages',
+                          color: Colors.green,
+                          onTap: onGoToMessages,
+                        ),
+                      ),
+                    ],
+                  ),
                   const SizedBox(height: 12),
-                  _buildScheduleItem('08:30 - 10:00', 'Maths', 'Salle 201'),
-                  _buildScheduleItem('10:15 - 11:45', 'Maths', 'Salle 201'),
-                  _buildScheduleItem('14:00 - 15:30', 'Français', 'Salle 105'),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _buildMenuItem(
+                          icon: Icons.class_,
+                          label: 'Classe',
+                          color: const Color(0xFF4CAF9F),
+                          onTap: onGoToClass,
+                        ),
+                      ),
+                      Expanded(
+                        child: _buildMenuItem(
+                          icon: Icons.event,
+                          label: 'Événements',
+                          color: const Color(0xFFFF9800),
+                          onTap: onGoToEvents,
+                        ),
+                      ),
+                      Expanded(
+                        child: _buildMenuItem(
+                          icon: Icons.person,
+                          label: 'Profil',
+                          color: const Color(0xFF9C27B0),
+                          onTap: onGoToProfile,
+                        ),
+                      ),
+                    ],
+                  ),
                 ],
               ),
             ),
 
-            const SizedBox(height: 12),
+            const SizedBox(height: 20),
 
-            // Rappels
+            // Informations supplémentaires
             Container(
-              padding: const EdgeInsets.all(12),
+              width: double.infinity,
+              padding: const EdgeInsets.all(20),
               decoration: BoxDecoration(
                 color: Colors.white,
-                borderRadius: BorderRadius.circular(16),
+                borderRadius: BorderRadius.circular(24),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.grey.withOpacity(0.05),
-                    blurRadius: 8,
-                    offset: const Offset(0, 2),
+                    color: Colors.grey.withOpacity(0.08),
+                    blurRadius: 15,
+                    offset: const Offset(0, 5),
                   ),
                 ],
               ),
@@ -624,17 +840,31 @@ class TeacherHomePage extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   const Text(
-                    '📌 RAPPELS IMPORTANTS',
+                    'ℹ️ À propos',
                     style: TextStyle(
-                      fontSize: 14,
+                      fontSize: 18,
                       fontWeight: FontWeight.bold,
                       color: Color(0xFF01579B),
                     ),
                   ),
-                  const SizedBox(height: 12),
-                  _buildReminderItem('Réunion parents-professeurs', '20/03 à 18h'),
-                  _buildReminderItem('Conseil de classe', '25/03'),
-                  _buildReminderItem('Sortie scolaire', '05/04'),
+                  const SizedBox(height: 16),
+                  _buildAboutItem(
+                    icon: Icons.school,
+                    title: 'Plateforme éducative',
+                    description: 'Gérez vos cours, devoirs et communications',
+                  ),
+                  const Divider(height: 24),
+                  _buildAboutItem(
+                    icon: Icons.people,
+                    title: 'Communication',
+                    description: 'Échangez avec les élèves et les parents',
+                  ),
+                  const Divider(height: 24),
+                  _buildAboutItem(
+                    icon: Icons.analytics,
+                    title: 'Suivi pédagogique',
+                    description: 'Notes, absences et progression des élèves',
+                  ),
                 ],
               ),
             ),
@@ -644,100 +874,125 @@ class TeacherHomePage extends StatelessWidget {
     );
   }
 
-  Widget _buildInfoCard({
-    required String title,
-    required String value,
+  Widget _buildStatCard({
     required IconData icon,
+    required String label,
+    required String value,
     required Color color,
   }) {
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.grey.withOpacity(0.05),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          ),
-        ],
+        color: Colors.white.withOpacity(0.15),
+        borderRadius: BorderRadius.circular(16),
       ),
-      child: Column(
+      child: Row(
         children: [
-          Container(
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: color.withOpacity(0.1),
-              borderRadius: BorderRadius.circular(10),
+          Icon(icon, color: color, size: 24),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  label,
+                  style: TextStyle(
+                    fontSize: 11,
+                    color: color.withOpacity(0.8),
+                  ),
+                ),
+                Text(
+                  value,
+                  style: const TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.white,
+                  ),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
             ),
-            child: Icon(icon, color: color, size: 22),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            value,
-            style: TextStyle(
-              fontSize: 20,
-              fontWeight: FontWeight.bold,
-              color: color,
-            ),
-          ),
-          const SizedBox(height: 2),
-          Text(
-            title,
-            style: TextStyle(
-              fontSize: 10,
-              color: Colors.grey[600],
-            ),
-            textAlign: TextAlign.center,
           ),
         ],
       ),
     );
   }
 
-  Widget _buildScheduleItem(String time, String subject, String room) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 10),
-      child: Row(
-        children: [
-          SizedBox(
-            width: 85,
-            child: Text(
-              time,
-              style: const TextStyle(
-                fontWeight: FontWeight.bold,
-                fontSize: 11,
-                color: Color(0xFF0288D1),
+  Widget _buildMenuItem({
+    required IconData icon,
+    required String label,
+    required Color color,
+    required VoidCallback onTap,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(16),
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 16),
+        decoration: BoxDecoration(
+          color: color.withOpacity(0.08),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: color.withOpacity(0.2)),
+        ),
+        child: Column(
+          children: [
+            Icon(icon, color: color, size: 28),
+            const SizedBox(height: 8),
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                color: color,
               ),
             ),
-          ),
-          Expanded(
-            child: Text(
-              '$subject - $room',
-              style: const TextStyle(fontSize: 12),
-            ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
 
-  Widget _buildReminderItem(String title, String date) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 6),
-      child: Row(
-        children: [
-          const Icon(Icons.circle, size: 6, color: Colors.orange),
-          const SizedBox(width: 6),
-          Expanded(
-            child: Text(
-              '$title: $date',
-              style: const TextStyle(fontSize: 12),
-            ),
+  Widget _buildAboutItem({
+    required IconData icon,
+    required String title,
+    required String description,
+  }) {
+    return Row(
+      children: [
+        Container(
+          width: 44,
+          height: 44,
+          decoration: BoxDecoration(
+            color: const Color(0xFF0288D1).withOpacity(0.1),
+            borderRadius: BorderRadius.circular(12),
           ),
-        ],
-      ),
+          child: Icon(icon, color: const Color(0xFF0288D1), size: 24),
+        ),
+        const SizedBox(width: 16),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                title,
+                style: const TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                  color: Color(0xFF01579B),
+                ),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                description,
+                style: TextStyle(
+                  fontSize: 12,
+                  color: Colors.grey[600],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 }

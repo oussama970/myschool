@@ -9,9 +9,9 @@ const userSchema = new mongoose.Schema({
   email: {
     type: String,
     required: true,
-    unique: true,
     lowercase: true,
     trim: true
+    // SUPPRIMÉ: unique: true (sera défini dans schema.index)
   },
   password: {
     type: String,
@@ -35,20 +35,18 @@ const userSchema = new mongoose.Schema({
   subjects: [{
     type: String
   }],
-  assignedClasses: [{  // ← LES CLASSES SONT ICI
+  assignedClasses: [{
     type: String
   }],
   
   // Pour les élèves
   childCode: {
-    type: String,
-    unique: true,
-    sparse: true
+    type: String
+    // SUPPRIMÉ: unique, sparse
   },
   parentCode: {
-    type: String,
-    unique: true,
-    sparse: true
+    type: String
+    // SUPPRIMÉ: unique, sparse
   },
   className: {
     type: String,
@@ -56,18 +54,14 @@ const userSchema = new mongoose.Schema({
   },
   
   // Pour les parents
-  linkedChild: {
+  linkedChildren: [{
     type: mongoose.Schema.Types.ObjectId,
-    ref: 'User',
-    default: null
-  },
+    ref: 'User'
+  }],
+  
   linkedParents: [{
     type: String,
     lowercase: true
-  }],
-  children: [{
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'User'
   }],
   
   // Notes et appréciations (pour les élèves)
@@ -126,9 +120,19 @@ const userSchema = new mongoose.Schema({
   }
 });
 
-// Index pour faciliter les recherches
+// ==================== UNIQUE ENDROIT POUR LES INDEX ====================
+// Tous les index sont définis ici pour éviter les doublons
+
+// Index unique sur email
+userSchema.index({ email: 1 }, { unique: true });
+
+// Index uniques et sparce pour les codes
+userSchema.index({ parentCode: 1 }, { unique: true, sparse: true });
+userSchema.index({ childCode: 1 }, { unique: true, sparse: true });
+
+// Index pour les recherches fréquentes
 userSchema.index({ role: 1 });
-userSchema.index({ className: 1 }); 
+userSchema.index({ className: 1 });
 userSchema.index({ createdAt: -1 });
 
 module.exports = mongoose.model('User', userSchema);

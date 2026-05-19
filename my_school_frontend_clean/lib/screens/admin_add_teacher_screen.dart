@@ -18,22 +18,15 @@ class _AdminAddTeacherScreenState extends State<AdminAddTeacherScreen> {
   
   bool _isLoading = false;
   
-  // Matières d'école primaire tunisienne
-  final Map<String, bool> _subjects = {
-    'Mathématiques': false,
-    'Français': false,
-    'Arabe': false,
-    'Anglais': false,
-    'Sciences': false,
-    'Éducation islamique': false,
-    'Histoire-Géographie': false,
-    'Technologie': false,
-    'Dessin': false,
-    'Musique': false,
-    'Sport': false,
-  };
+  // MATIÈRES POUR ÉCOLE PRIMAIRE
+  final List<String> _subjects = [
+    'Maths', 'Français', 'Arabe', 'Anglais', 'Sciences', 
+    'Islamique', 'Dessin', 'Musique', 'Sport', 'Informatique'
+  ];
+  
+  // Matière sélectionnée (une seule)
+  String? _selectedSubject;
 
-  // Changé: Classes au format "1ère année A", "1ère année B", etc.
   final List<String> _availableClasses = [
     '1ère année A', '1ère année B', 
     '2ème année A', '2ème année B', 
@@ -71,12 +64,18 @@ class _AdminAddTeacherScreenState extends State<AdminAddTeacherScreen> {
   Future<void> _handleAddTeacher() async {
     if (!_formKey.currentState!.validate()) return;
     
+    // Vérifier qu'une matière est sélectionnée
+    if (_selectedSubject == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Veuillez sélectionner une matière'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      return;
+    }
+    
     setState(() => _isLoading = true);
-
-    List<String> selectedSubjects = _subjects.entries
-        .where((e) => e.value)
-        .map((e) => e.key)
-        .toList();
 
     List<String> selectedClasses = _selectedClasses.entries
         .where((e) => e.value)
@@ -89,7 +88,7 @@ class _AdminAddTeacherScreenState extends State<AdminAddTeacherScreen> {
         email: _emailController.text.trim(),
         password: _generateRandomPassword(),
         phoneNumber: _phoneController.text.trim(),
-        subjects: selectedSubjects,
+        subjects: [_selectedSubject!], // Une seule matière dans une liste
         classes: selectedClasses,
       );
 
@@ -106,6 +105,7 @@ class _AdminAddTeacherScreenState extends State<AdminAddTeacherScreen> {
                   const Text('Enseignant ajouté avec succès !'),
                   const SizedBox(height: 8),
                   Text('Email: ${_emailController.text}'),
+                  Text('Matière: $_selectedSubject'),
                   const Text('Un email a été envoyé avec les identifiants.'),
                 ],
               ),
@@ -300,7 +300,7 @@ class _AdminAddTeacherScreenState extends State<AdminAddTeacherScreen> {
                           
                           const SizedBox(height: 24),
                           
-                          // Matières enseignées
+                          // Matière enseignée (sélection unique)
                           Container(
                             padding: const EdgeInsets.all(16),
                             decoration: BoxDecoration(
@@ -312,7 +312,7 @@ class _AdminAddTeacherScreenState extends State<AdminAddTeacherScreen> {
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 const Text(
-                                  'Matières enseignées',
+                                  'Matière enseignée *',
                                   style: TextStyle(
                                     fontSize: 14,
                                     fontWeight: FontWeight.w600,
@@ -323,28 +323,29 @@ class _AdminAddTeacherScreenState extends State<AdminAddTeacherScreen> {
                                 Wrap(
                                   spacing: 8,
                                   runSpacing: 8,
-                                  children: _subjects.keys.map((subject) {
+                                  children: _subjects.map((subject) {
+                                    final isSelected = _selectedSubject == subject;
                                     return FilterChip(
                                       label: Text(
                                         subject,
                                         style: TextStyle(
                                           fontSize: 12,
-                                          color: _subjects[subject]! 
-                                              ? const Color(0xFF0288D1)
+                                          color: isSelected 
+                                              ? Colors.white
                                               : Colors.grey[700],
                                         ),
                                       ),
-                                      selected: _subjects[subject]!,
+                                      selected: isSelected,
                                       onSelected: (bool selected) {
                                         setState(() {
-                                          _subjects[subject] = selected;
+                                          _selectedSubject = selected ? subject : null;
                                         });
                                       },
                                       backgroundColor: Colors.grey.shade100,
-                                      selectedColor: const Color(0xFF0288D1).withOpacity(0.1),
-                                      checkmarkColor: const Color(0xFF0288D1),
+                                      selectedColor: const Color(0xFF0288D1),
+                                      checkmarkColor: Colors.white,
                                       side: BorderSide(
-                                        color: _subjects[subject]! 
+                                        color: isSelected 
                                             ? const Color(0xFF0288D1) 
                                             : Colors.grey.shade300,
                                       ),

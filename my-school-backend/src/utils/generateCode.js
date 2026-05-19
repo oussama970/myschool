@@ -1,7 +1,10 @@
 const generateCode = (length = 6) => {
-  const min = Math.pow(10, length - 1);
-  const max = Math.pow(10, length) - 1;
-  return Math.floor(min + Math.random() * (max - min + 1)).toString();
+  // CORRECTION: Permet les codes commençant par 0
+  let code = '';
+  for (let i = 0; i < length; i++) {
+    code += Math.floor(Math.random() * 10).toString();
+  }
+  return code;
 };
 
 module.exports = generateCode;

@@ -1,22 +1,29 @@
-const User = require('../models/User');
+const Student = require('../models/Student');
+const Teacher = require('../models/Teacher');
+const Parent = require('../models/Parent');
+const Admin = require('../models/Admin');
 const VerificationCode = require('../models/VerificationCode');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const generateCode = require('../utils/generateCode');
 const { sendVerificationEmail, sendParentCodeEmail, sendPasswordResetEmail } = require('../utils/emailService');
 
-const generateToken = (id) => jwt.sign({ id }, process.env.JWT_SECRET, { expiresIn: '30d' });
+const generateToken = (id, role) => jwt.sign({ id, role }, process.env.JWT_SECRET, { expiresIn: '30d' });
 
-// @desc    Inscription
-// @route   POST /api/auth/register
 const register = async (req, res) => {
   try {
     const { fullName, email, password, role } = req.body;
-
-    const existingUser = await User.findOne({ email: email.toLowerCase() });
-    if (existingUser) {
-      return res.status(400).json({ message: 'Cet email est déjà utilisé' });
+    let existingUser = null;
+    
+    switch(role) {
+      case 'student': existingUser = await Student.findOne({ email: email.toLowerCase() }); break;
+      case 'teacher': existingUser = await Teacher.findOne({ email: email.toLowerCase() }); break;
+      case 'parent': existingUser = await Parent.findOne({ email: email.toLowerCase() }); break;
+      case 'admin': existingUser = await Admin.findOne({ email: email.toLowerCase() }); break;
+      default: return res.status(400).json({ message: 'Rôle invalide' });
     }
+
+    if (existingUser) return res.status(400).json({ message: 'Cet email est déjà utilisé' });
 
     const salt = await bcrypt.genSalt(10);
     const hashedPassword = await bcrypt.hash(password, salt);
@@ -24,368 +31,188 @@ const register = async (req, res) => {
     if (role === 'student') {
       const childCode = generateCode(6);
       const parentCode = generateCode(10);
-      
-      const student = await User.create({
-        fullName,
-        email: email.toLowerCase(),
-        password: hashedPassword,
-        role: 'student',
-        childCode,
-        parentCode,
-        isVerified: false,
-        linkedParents: []
-      });
-
+      const student = await Student.create({ fullName, email: email.toLowerCase(), password: hashedPassword, childCode, parentCode, isVerified: false, linkedParents: [] });
       await sendVerificationEmail(email, childCode, fullName);
-
-      return res.status(201).json({
-        success: true,
-        message: 'Inscription réussie ! Vérifiez votre email.',
-        token: generateToken(student._id),
-        user: {
-          id: student._id,
-          fullName: student.fullName,
-          email: student.email,
-          role: student.role
-        }
-      });
-    } else {
-      const parent = await User.create({
-        fullName,
-        email: email.toLowerCase(),
-        password: hashedPassword,
-        role: 'parent',
-        linkedChild: null
-      });
-
-      return res.status(201).json({
-        success: true,
-        message: 'Inscription réussie !',
-        token: generateToken(parent._id),
-        user: {
-          id: parent._id,
-          fullName: parent.fullName,
-          email: parent.email,
-          role: parent.role
-        }
-      });
+      return res.status(201).json({ success: true, message: 'Inscription réussie ! Vérifiez votre email.', token: generateToken(student._id, 'student'), user: { id: student._id, fullName: student.fullName, email: student.email, role: 'student' } });
+    } 
+    else if (role === 'parent') {
+      const parent = await Parent.create({ fullName, email: email.toLowerCase(), password: hashedPassword, linkedChildren: [] });
+      return res.status(201).json({ success: true, message: 'Inscription réussie !', token: generateToken(parent._id, 'parent'), user: { id: parent._id, fullName: parent.fullName, email: parent.email, role: 'parent' } });
+    }
+    else {
+      return res.status(400).json({ message: 'Rôle non supporté pour l\'inscription' });
     }
   } catch (error) {
     console.error('Erreur register:', error);
-    return res.status(500).json({ message: 'Erreur lors de l\'inscription' });
+    return res.status(500).json({ message: 'Erreur serveur' });
   }
 };
 
-// @desc    Vérification email élève
-// @route   POST /api/auth/verify-email
 const verifyEmail = async (req, res) => {
   try {
     const { email, code } = req.body;
-
-    const student = await User.findOne({ email: email.toLowerCase(), role: 'student' });
-    if (!student) {
-      return res.status(404).json({ message: 'Élève non trouvé' });
-    }
-
-    if (student.childCode !== code) {
-      return res.status(400).json({ message: 'Code incorrect' });
-    }
-
+    const student = await Student.findOne({ email: email.toLowerCase() });
+    if (!student) return res.status(404).json({ message: 'Élève non trouvé' });
+    if (student.childCode !== code) return res.status(400).json({ message: 'Code incorrect' });
+    
     student.isVerified = true;
     await student.save();
-
     await sendParentCodeEmail(email, student.parentCode, student.fullName);
-
-    return res.json({
-      success: true,
-      message: 'Email vérifié !',
-      parentCode: student.parentCode
-    });
+    
+    return res.json({ success: true, message: 'Email vérifié !', parentCode: student.parentCode });
   } catch (error) {
     console.error('Erreur verifyEmail:', error);
     return res.status(500).json({ message: 'Erreur serveur' });
   }
 };
 
-// @desc    Connexion
-// @route   POST /api/auth/login
 const login = async (req, res) => {
   try {
     const { email, password } = req.body;
-
-    const user = await User.findOne({ email: email.toLowerCase() });
-    if (!user) {
-      return res.status(401).json({ message: 'Email ou mot de passe incorrect' });
-    }
-
+    const emailLower = email.toLowerCase();
+    
+    let user = await Student.findOne({ email: emailLower });
+    let role = 'student';
+    
+    if (!user) { user = await Teacher.findOne({ email: emailLower }); role = 'teacher'; }
+    if (!user) { user = await Parent.findOne({ email: emailLower }); role = 'parent'; }
+    if (!user) { user = await Admin.findOne({ email: emailLower }); role = 'admin'; }
+    
+    if (!user) return res.status(401).json({ message: 'Email ou mot de passe incorrect' });
+    
     const isMatch = await bcrypt.compare(password, user.password);
-    if (!isMatch) {
-      return res.status(401).json({ message: 'Email ou mot de passe incorrect' });
+    if (!isMatch) return res.status(401).json({ message: 'Email ou mot de passe incorrect' });
+    
+    if (role === 'student' && !user.isVerified) {
+      return res.status(403).json({ message: 'Veuillez vérifier votre email', requiresVerification: true });
     }
-
-    if (user.role === 'student' && !user.isVerified) {
-      return res.status(403).json({
-        message: 'Veuillez vérifier votre email',
-        requiresVerification: true
-      });
-    }
-
-    return res.json({
-      success: true,
-      message: 'Connexion réussie',
-      token: generateToken(user._id),
-      user: {
-        id: user._id,
-        fullName: user.fullName,
-        email: user.email,
-        role: user.role
-      }
-    });
+    
+    return res.json({ success: true, message: 'Connexion réussie', token: generateToken(user._id, role), user: { id: user._id, fullName: user.fullName, email: user.email, role: role } });
   } catch (error) {
     console.error('Erreur login:', error);
     return res.status(500).json({ message: 'Erreur serveur' });
   }
 };
 
-// @desc    Vérifier le code parent (première liaison)
-// @route   POST /api/auth/verify-parent-code
 const verifyParentCode = async (req, res) => {
   try {
     const { parentCode } = req.body;
-
-    console.log('🔍 Vérification code parent reçu:', parentCode);
-    console.log('👤 Utilisateur authentifié ID:', req.user?.id);
-
-    if (!req.user) {
-      return res.status(401).json({ 
-        success: false,
-        message: 'Non authentifié' 
-      });
+    if (!req.user) return res.status(401).json({ success: false, message: 'Non authentifié' });
+    
+    const child = await Student.findOne({ parentCode, isVerified: true });
+    if (!child) return res.status(404).json({ success: false, message: 'Code invalide' });
+    
+    const parent = await Parent.findById(req.user.id);
+    if (!parent) return res.status(403).json({ success: false, message: 'Parent non trouvé' });
+    
+    if (!parent.linkedChildren.includes(child._id)) {
+      parent.linkedChildren.push(child._id);
+      await parent.save();
     }
-
-    // Chercher l'enfant avec ce code parent
-    const child = await User.findOne({
-      parentCode: parentCode,
-      role: 'student',
-      isVerified: true
-    });
-
-    console.log('👦 Enfant trouvé:', child ? child.fullName : 'Aucun');
-
-    if (!child) {
-      return res.status(404).json({
-        success: false,
-        message: 'Code invalide. Aucun élève trouvé avec ce code.'
-      });
-    }
-
-    // Récupérer le parent
-    const parent = await User.findById(req.user.id);
-    console.log('👨 Parent trouvé:', parent ? parent.email : 'Aucun');
-
-    if (!parent || parent.role !== 'parent') {
-      return res.status(403).json({ 
-        success: false,
-        message: 'Parent non trouvé' 
-      });
-    }
-
-    // LIER L'ENFANT AU PARENT
-    parent.linkedChild = child._id;
-    await parent.save();
-    console.log('✅ Parent lié à l\'enfant:', child._id);
-
-    // Ajouter le parent à la liste des parents liés de l'enfant
+    
     if (!child.linkedParents.includes(parent.email)) {
       child.linkedParents.push(parent.email);
       await child.save();
-      console.log('✅ Enfant mis à jour avec parent:', parent.email);
     }
-
-    return res.json({
-      success: true,
-      message: `✅ Enfant ${child.fullName} lié avec succès !`,
-      child: {
-        id: child._id,
-        fullName: child.fullName,
-        email: child.email
-      }
-    });
+    
+    return res.json({ success: true, message: `✅ Enfant ${child.fullName} lié avec succès !`, child: { id: child._id, fullName: child.fullName, email: child.email } });
   } catch (error) {
-    console.error('❌ Erreur verifyParentCode:', error);
-    return res.status(500).json({ 
-      success: false,
-      message: 'Erreur serveur' 
-    });
+    console.error('Erreur:', error);
+    return res.status(500).json({ success: false, message: 'Erreur serveur' });
   }
 };
 
-// @desc    Récupérer les informations d'un enfant
-// @route   GET /api/auth/child/:email
 const getChildInfo = async (req, res) => {
   try {
     const { email } = req.params;
-    const child = await User.findOne({ email: email.toLowerCase(), role: 'student' })
-      .select('fullName email parentCode');
-    
-    if (!child) {
-      return res.status(404).json({ message: 'Enfant non trouvé' });
-    }
-
-    return res.json({
-      success: true,
-      fullName: child.fullName,
-      email: child.email,
-      parentCode: child.parentCode
-    });
+    const child = await Student.findOne({ email: email.toLowerCase() }).select('fullName email parentCode');
+    if (!child) return res.status(404).json({ message: 'Enfant non trouvé' });
+    return res.json({ success: true, fullName: child.fullName, email: child.email, parentCode: child.parentCode });
   } catch (error) {
-    console.error('Erreur getChildInfo:', error);
+    console.error('Erreur:', error);
     return res.status(500).json({ message: 'Erreur serveur' });
   }
 };
 
-// @desc    Récupérer l'enfant lié à un parent
-// @route   GET /api/auth/linked-child/:email
 const getLinkedChild = async (req, res) => {
   try {
     const { email } = req.params;
-    console.log('🔍 Recherche enfant lié pour parent:', email);
-
-    const parent = await User.findOne({ 
-      email: email.toLowerCase(), 
-      role: 'parent' 
-    }).populate('linkedChild', 'fullName email parentCode');
-
-    if (!parent) {
-      console.log('❌ Parent non trouvé');
-      return res.status(404).json({ 
-        success: false,
-        message: 'Parent non trouvé' 
-      });
-    }
-
-    console.log('👨 Parent trouvé, linkedChild:', parent.linkedChild);
-
-    if (!parent.linkedChild) {
-      return res.status(404).json({ 
-        success: false,
-        message: 'Aucun enfant lié' 
-      });
-    }
-
-    return res.json({
-      success: true,
-      child: {
-        id: parent.linkedChild._id,
-        fullName: parent.linkedChild.fullName,
-        email: parent.linkedChild.email
-      }
-    });
+    const parent = await Parent.findOne({ email: email.toLowerCase() }).populate('linkedChildren', 'fullName email');
+    if (!parent) return res.status(404).json({ success: false, message: 'Parent non trouvé' });
+    if (!parent.linkedChildren || parent.linkedChildren.length === 0) return res.status(404).json({ success: false, message: 'Aucun enfant lié' });
+    const firstChild = parent.linkedChildren[0];
+    return res.json({ success: true, child: { id: firstChild._id, fullName: firstChild.fullName, email: firstChild.email } });
   } catch (error) {
-    console.error('❌ Erreur getLinkedChild:', error);
-    return res.status(500).json({ 
-      success: false,
-      message: 'Erreur serveur' 
-    });
+    console.error('Erreur:', error);
+    return res.status(500).json({ success: false, message: 'Erreur serveur' });
   }
 };
 
-// @desc    Récupérer tous les enfants d'un parent
-// @route   GET /api/auth/parent-children/:email
 const getParentChildren = async (req, res) => {
   try {
     const { email } = req.params;
-    
-    return res.json({
-      success: true,
-      children: []
-    });
+    const parent = await Parent.findOne({ email: email.toLowerCase() }).populate('linkedChildren', 'fullName email className childCode');
+    if (!parent) return res.status(404).json({ success: false, message: 'Parent non trouvé' });
+    const children = parent.linkedChildren || [];
+    return res.json({ success: true, children: children.map(child => ({ id: child._id, fullName: child.fullName, email: child.email, className: child.className, childCode: child.childCode })) });
   } catch (error) {
-    console.error('Erreur getParentChildren:', error);
-    return res.status(500).json({ message: 'Erreur serveur' });
+    console.error('Erreur:', error);
+    return res.status(500).json({ success: false, message: 'Erreur serveur' });
   }
 };
 
-// @desc    Demande de réinitialisation
-// @route   POST /api/auth/forgot-password
 const forgotPassword = async (req, res) => {
   try {
     const { email } = req.body;
-
-    const user = await User.findOne({ email: email.toLowerCase() });
-    if (!user) {
-      return res.status(404).json({ message: 'Aucun compte avec cet email' });
-    }
-
+    const emailLower = email.toLowerCase();
+    
+    let user = await Student.findOne({ email: emailLower });
+    if (!user) user = await Teacher.findOne({ email: emailLower });
+    if (!user) user = await Parent.findOne({ email: emailLower });
+    if (!user) user = await Admin.findOne({ email: emailLower });
+    
+    if (!user) return res.status(404).json({ message: 'Aucun compte avec cet email' });
+    
     const code = generateCode(6);
-
-    await VerificationCode.create({
-      email: email.toLowerCase(),
-      code,
-      type: 'password_reset'
-    });
-
+    await VerificationCode.create({ email: emailLower, code, type: 'password_reset' });
     await sendPasswordResetEmail(email, code);
-
-    return res.json({ 
-      success: true,
-      message: 'Code de réinitialisation envoyé',
-      email: email.toLowerCase()
-    });
-
+    
+    return res.json({ success: true, message: 'Code de réinitialisation envoyé', email: emailLower });
   } catch (error) {
-    console.error('Erreur forgotPassword:', error);
+    console.error('Erreur:', error);
     return res.status(500).json({ message: 'Erreur serveur' });
   }
 };
 
-// @desc    Réinitialiser le mot de passe
-// @route   POST /api/auth/reset-password
 const resetPassword = async (req, res) => {
   try {
     const { email, code, newPassword } = req.body;
-
-    const verification = await VerificationCode.findOne({
-      email: email.toLowerCase(),
-      code,
-      type: 'password_reset',
-      used: false
-    });
-
-    if (!verification) {
-      return res.status(400).json({ message: 'Code invalide ou expiré' });
-    }
-
+    const emailLower = email.toLowerCase();
+    
+    const verification = await VerificationCode.findOne({ email: emailLower, code, type: 'password_reset', used: false });
+    if (!verification) return res.status(400).json({ message: 'Code invalide ou expiré' });
+    
     const salt = await bcrypt.genSalt(10);
     const hashedPassword = await bcrypt.hash(newPassword, salt);
-
-    await User.findOneAndUpdate(
-      { email: email.toLowerCase() },
-      { password: hashedPassword }
-    );
-
+    
+    let updated = false;
+    let student = await Student.findOne({ email: emailLower });
+    if (student) { student.password = hashedPassword; await student.save(); updated = true; }
+    
+    if (!updated) { let teacher = await Teacher.findOne({ email: emailLower }); if (teacher) { teacher.password = hashedPassword; await teacher.save(); updated = true; } }
+    if (!updated) { let parent = await Parent.findOne({ email: emailLower }); if (parent) { parent.password = hashedPassword; await parent.save(); updated = true; } }
+    if (!updated) { let admin = await Admin.findOne({ email: emailLower }); if (admin) { admin.password = hashedPassword; await admin.save(); updated = true; } }
+    
+    if (!updated) return res.status(404).json({ message: 'Utilisateur non trouvé' });
+    
     verification.used = true;
     await verification.save();
-
-    return res.json({ 
-      success: true,
-      message: 'Mot de passe réinitialisé avec succès' 
-    });
-
+    
+    return res.json({ success: true, message: 'Mot de passe réinitialisé avec succès' });
   } catch (error) {
-    console.error('Erreur resetPassword:', error);
+    console.error('Erreur:', error);
     return res.status(500).json({ message: 'Erreur serveur' });
   }
 };
 
-module.exports = {
-  register,
-  verifyEmail,
-  login,
-  verifyParentCode,
-  getChildInfo,
-  getLinkedChild,
-  getParentChildren,
-  forgotPassword,
-  resetPassword
-};
+module.exports = { register, verifyEmail, login, verifyParentCode, getChildInfo, getLinkedChild, getParentChildren, forgotPassword, resetPassword };

@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:my_school_frontend/services/api_service.dart';
-import 'student_dashboard_screen.dart';
+import 'package:my_school_frontend/screens/parent/parent_dashboard_screen.dart';
 import 'login_screen.dart';
 
 class ParentFirstLinkScreen extends StatefulWidget {
@@ -24,6 +24,7 @@ class _ParentFirstLinkScreenState extends State<ParentFirstLinkScreen> {
   );
   late List<FocusNode> _focusNodes;
   bool _isLoading = false;
+  String? _parentId;
 
   @override
   void initState() {
@@ -32,11 +33,11 @@ class _ParentFirstLinkScreenState extends State<ParentFirstLinkScreen> {
     
     // Vérifier le token au chargement
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      _checkToken();
+      _checkTokenAndLoadParent();
     });
   }
 
-  Future<void> _checkToken() async {
+  Future<void> _checkTokenAndLoadParent() async {
     print('🔍 VÉRIFICATION TOKEN AU CHARGEMENT');
     final token = await ApiService.getToken();
     print('🔑 RÉSULTAT: ${token != null}');
@@ -53,6 +54,30 @@ class _ParentFirstLinkScreenState extends State<ParentFirstLinkScreen> {
         context,
         MaterialPageRoute(builder: (context) => const LoginScreen()),
       );
+      return;
+    }
+    
+    // Récupérer l'ID du parent
+    await _loadParentId();
+  }
+
+  Future<void> _loadParentId() async {
+    try {
+      // Récupérer les informations du parent pour obtenir son ID
+      final result = await ApiService.getParentChildren(widget.parentEmail);
+      if (result['success'] && result['children'] != null) {
+        // L'ID du parent n'est pas directement dans cette réponse
+        // On va utiliser l'email comme identifiant pour le lien
+        // Alternative: appeler un endpoint pour récupérer le profil du parent
+        setState(() {
+          _parentId = widget.parentEmail; // Utiliser l'email comme identifiant
+        });
+      }
+    } catch (e) {
+      print('Erreur chargement parent ID: $e');
+      setState(() {
+        _parentId = widget.parentEmail;
+      });
     }
   }
 
@@ -80,9 +105,12 @@ class _ParentFirstLinkScreenState extends State<ParentFirstLinkScreen> {
       return;
     }
 
-    print('🚀 ENVOI DE LA REQUÊTE verifyParentCode');
-    final result = await ApiService.verifyParentCode(
+    print('🚀 ENVOI DE LA REQUÊTE linkChildToParent');
+    
+    // Utiliser la nouvelle méthode linkChildToParent
+    final result = await ApiService.linkChildToParent(
       parentCode: code,
+      parentId: widget.parentEmail, // Utiliser l'email comme identifiant
     );
 
     setState(() => _isLoading = false);
@@ -90,7 +118,7 @@ class _ParentFirstLinkScreenState extends State<ParentFirstLinkScreen> {
     if (!mounted) return;
 
     if (result['success']) {
-      final childData = result['data']['child'];
+      final childData = result['child'];
       print('✅ SUCCÈS - Enfant lié: ${childData['fullName']}');
       
       ScaffoldMessenger.of(context).showSnackBar(
@@ -100,14 +128,13 @@ class _ParentFirstLinkScreenState extends State<ParentFirstLinkScreen> {
         ),
       );
       
+      // Rediriger vers le dashboard parent au lieu de StudentDashboardScreen
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(
-          builder: (_) => StudentDashboardScreen(
-            email: childData['email'],
-            studentName: childData['fullName'],
-            isParent: true,
+          builder: (_) => ParentDashboardScreen(
             parentEmail: widget.parentEmail,
+            parentName: widget.parentName,
           ),
         ),
       );
@@ -153,8 +180,8 @@ class _ParentFirstLinkScreenState extends State<ParentFirstLinkScreen> {
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
             colors: [
-              Color(0xFF0288D1), // Bleu foncé
-              Color(0xFF4FC3F7), // Bleu clair
+              Color(0xFF0288D1),
+              Color(0xFF4FC3F7),
             ],
           ),
         ),
@@ -234,6 +261,30 @@ class _ParentFirstLinkScreenState extends State<ParentFirstLinkScreen> {
                             color: Color(0xFF0288D1),
                             fontWeight: FontWeight.w500,
                           ),
+                        ),
+                      ),
+                      
+                      const SizedBox(height: 16),
+                      
+                      // Message d'information
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: Colors.orange.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: Colors.orange.withOpacity(0.3)),
+                        ),
+                        child: const Row(
+                          children: [
+                            Icon(Icons.info_outline, size: 20, color: Colors.orange),
+                            SizedBox(width: 12),
+                            Expanded(
+                              child: Text(
+                                'Entrez le code à 10 chiffres que votre enfant a reçu par email',
+                                style: TextStyle(fontSize: 13, color: Color(0xFF2C3E50)),
+                              ),
+                            ),
+                          ],
                         ),
                       ),
                       
@@ -331,6 +382,26 @@ class _ParentFirstLinkScreenState extends State<ParentFirstLinkScreen> {
                                     color: Colors.white,
                                   ),
                                 ),
+                        ),
+                      ),
+                      
+                      const SizedBox(height: 16),
+                      
+                      // Lien retour
+                      TextButton(
+                        onPressed: () {
+                          Navigator.pushReplacement(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => const LoginScreen(),
+                            ),
+                          );
+                        },
+                        child: const Text(
+                          'Retour à la connexion',
+                          style: TextStyle(
+                            color: Color(0xFF0288D1),
+                          ),
                         ),
                       ),
                     ],

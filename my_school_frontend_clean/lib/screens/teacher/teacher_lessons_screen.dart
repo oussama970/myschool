@@ -3,15 +3,18 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:my_school_frontend/services/api_service.dart';
+import 'package:open_file/open_file.dart';
 
 class TeacherLessonsScreen extends StatefulWidget {
   final String teacherEmail;
   final String className;
+  final String teacherSubject;
 
   const TeacherLessonsScreen({
     super.key,
     required this.teacherEmail,
     required this.className,
+    required this.teacherSubject,
   });
 
   @override
@@ -35,7 +38,7 @@ class _TeacherLessonsScreenState extends State<TeacherLessonsScreen> {
   final _descriptionController = TextEditingController();
   final _dateController = TextEditingController();
   final _deadlineController = TextEditingController();
-  String _selectedSubject = 'Maths';
+  String _selectedSubject = '';
   String _selectedType = 'Cours';
   List<Map<String, dynamic>> _attachedFiles = [];
   bool _showDeadline = false;
@@ -51,6 +54,7 @@ class _TeacherLessonsScreenState extends State<TeacherLessonsScreen> {
   void initState() {
     super.initState();
     _dateController.text = _getCurrentDate();
+    _selectedSubject = widget.teacherSubject;
     _loadData();
   }
 
@@ -78,6 +82,12 @@ class _TeacherLessonsScreenState extends State<TeacherLessonsScreen> {
     }
   }
 
+  String _formatFileSize(int size) {
+    if (size < 1024) return '$size B';
+    if (size < 1024 * 1024) return '${(size / 1024).toStringAsFixed(1)} KB';
+    return '${(size / (1024 * 1024)).toStringAsFixed(1)} MB';
+  }
+
   Future<void> _loadData() async {
     setState(() => _isLoading = true);
     
@@ -89,7 +99,7 @@ class _TeacherLessonsScreenState extends State<TeacherLessonsScreen> {
         
         setState(() {
           _courses = lessons
-              .where((l) => l['type'] == 'Cours')
+              .where((l) => l['type'] == 'Cours' && l['subject'] == widget.teacherSubject)
               .map((l) => ({
                     'id': l['_id'],
                     'title': l['title'] ?? 'Sans titre',
@@ -97,11 +107,12 @@ class _TeacherLessonsScreenState extends State<TeacherLessonsScreen> {
                     'date': _formatDate(l['createdAt']),
                     'hasFiles': (l['files'] as List?)?.isNotEmpty ?? false,
                     'description': l['description'] ?? '',
+                    'files': l['files'] ?? [],
                   }))
               .toList();
               
           _homeworks = lessons
-              .where((l) => l['type'] == 'Devoir')
+              .where((l) => l['type'] == 'Devoir' && l['subject'] == widget.teacherSubject)
               .map((l) => ({
                     'id': l['_id'],
                     'title': l['title'] ?? 'Sans titre',
@@ -111,16 +122,18 @@ class _TeacherLessonsScreenState extends State<TeacherLessonsScreen> {
                         : 'À définir',
                     'hasFiles': (l['files'] as List?)?.isNotEmpty ?? false,
                     'description': l['description'] ?? '',
+                    'files': l['files'] ?? [],
                   }))
               .toList();
               
           _reminders = lessons
-              .where((l) => l['type'] == 'Rappel')
+              .where((l) => l['type'] == 'Rappel' && l['subject'] == widget.teacherSubject)
               .map((l) => ({
                     'id': l['_id'],
                     'title': l['title'] ?? 'Sans titre',
                     'description': l['description'] ?? '',
                     'date': _formatDate(l['createdAt']),
+                    'files': l['files'] ?? [],
                   }))
               .toList();
           
@@ -137,17 +150,9 @@ class _TeacherLessonsScreenState extends State<TeacherLessonsScreen> {
 
   void _loadMockData() {
     setState(() {
-      _courses = [
-        {'id': '1', 'title': 'Les fractions', 'subject': 'Maths', 'date': '14/03/2024', 'hasFiles': true, 'description': 'Introduction aux fractions'},
-        {'id': '2', 'title': 'Le passé simple', 'subject': 'Français', 'date': '13/03/2024', 'hasFiles': true, 'description': 'Conjugaison du passé simple'},
-      ];
-      _homeworks = [
-        {'id': '4', 'title': 'Exercice Maths', 'subject': 'Maths', 'deadline': '20/03/2024', 'hasFiles': true, 'description': 'Exercices page 42'},
-      ];
-      _reminders = [
-        {'id': '6', 'title': 'Réunion parents', 'description': '18h salle 101', 'date': '20/03/2024'},
-        {'id': '7', 'title': 'Sortie scolaire', 'description': 'Prévoir pique-nique', 'date': '05/04/2024'},
-      ];
+      _courses = [];
+      _homeworks = [];
+      _reminders = [];
       _isLoading = false;
     });
   }
@@ -157,7 +162,7 @@ class _TeacherLessonsScreenState extends State<TeacherLessonsScreen> {
     _descriptionController.clear();
     _deadlineController.clear();
     _attachedFiles.clear();
-    _selectedSubject = 'Maths';
+    _selectedSubject = widget.teacherSubject;
     _selectedType = 'Cours';
     _showDeadline = false;
     _isEditing = false;
@@ -174,10 +179,12 @@ class _TeacherLessonsScreenState extends State<TeacherLessonsScreen> {
       );
       
       if (photo != null) {
+        final File file = File(photo.path);
         setState(() {
           _attachedFiles.add({
             'name': photo.name,
             'path': photo.path,
+            'file': file,
             'type': 'image',
           });
         });
@@ -196,10 +203,12 @@ class _TeacherLessonsScreenState extends State<TeacherLessonsScreen> {
       );
       
       if (image != null) {
+        final File file = File(image.path);
         setState(() {
           _attachedFiles.add({
             'name': image.name,
             'path': image.path,
+            'file': file,
             'type': 'image',
           });
         });
@@ -215,21 +224,24 @@ class _TeacherLessonsScreenState extends State<TeacherLessonsScreen> {
       FilePickerResult? result = await FilePicker.platform.pickFiles(
         allowMultiple: true,
         type: FileType.custom,
-        allowedExtensions: ['pdf', 'doc', 'docx', 'txt', 'jpg', 'png', 'mp4', 'ppt', 'xls'],
+        allowedExtensions: ['pdf', 'jpg', 'png', 'webp', 'txt', 'doc', 'docx', 'mp4', 'mp3'],
       );
       
       if (result != null) {
         for (var file in result.files) {
-          setState(() {
-            _attachedFiles.add({
-              'name': file.name,
-              'path': file.path,
-              'size': file.size,
-              'type': 'file',
+          if (file.path != null) {
+            setState(() {
+              _attachedFiles.add({
+                'name': file.name,
+                'path': file.path,
+                'size': file.size,
+                'file': File(file.path!),
+                'type': 'file',
+              });
             });
-          });
+            _showSnackBar('📎 Fichier ajouté: ${file.name}', Colors.green);
+          }
         }
-        _showSnackBar('📎 ${result.files.length} fichier(s) ajouté(s)', Colors.green);
       }
     } catch (e) {
       _showSnackBar('Erreur: $e', Colors.red);
@@ -238,7 +250,7 @@ class _TeacherLessonsScreenState extends State<TeacherLessonsScreen> {
 
   void _showSnackBar(String message, Color color) {
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message), backgroundColor: color, duration: const Duration(seconds: 1)),
+      SnackBar(content: Text(message), backgroundColor: color, duration: const Duration(seconds: 2)),
     );
   }
 
@@ -307,31 +319,7 @@ class _TeacherLessonsScreenState extends State<TeacherLessonsScreen> {
     setState(() {
       _attachedFiles.removeAt(index);
     });
-  }
-
-  void _editContent(Map<String, dynamic> item, String type) {
-    _resetForm();
-    _isEditing = true;
-    _editingId = item['id'].toString();
-    _editingType = type;
-    _selectedType = type;
-    
-    _titleController.text = item['title'] ?? '';
-    _descriptionController.text = item['description'] ?? '';
-    
-    if (type == 'Rappel') {
-      _selectedSubject = 'Maths';
-      _showDeadline = false;
-    } else if (type == 'Cours') {
-      _selectedSubject = item['subject'] ?? 'Maths';
-      _showDeadline = false;
-    } else if (type == 'Devoir') {
-      _selectedSubject = item['subject'] ?? 'Maths';
-      _showDeadline = true;
-      _deadlineController.text = item['deadline'] ?? '';
-    }
-    
-    _showFormDialog(isEditing: true);
+    _showSnackBar('Fichier supprimé', Colors.orange);
   }
 
   Future<void> _saveContent() async {
@@ -343,46 +331,66 @@ class _TeacherLessonsScreenState extends State<TeacherLessonsScreen> {
     setState(() => _isLoading = true);
     
     try {
-      List<String> fileNames = _attachedFiles.map((f) => f['name'] as String).toList();
-      Map<String, dynamic> result;
+      print('========== SAVE CONTENT ==========');
+      print('📎 Fichiers à uploader: ${_attachedFiles.length}');
       
-      final subject = _selectedType == 'Rappel' ? '' : _selectedSubject;
+      List<Map<String, dynamic>> uploadedFiles = [];
+      
+      for (var fileData in _attachedFiles) {
+        if (fileData.containsKey('file') && fileData['file'] != null) {
+          print('📤 Upload: ${fileData['name']}');
+          final uploadResult = await ApiService.uploadFile(fileData['file']);
+          
+          if (uploadResult['success']) {
+            uploadedFiles.add({
+              'filename': uploadResult['file']['filename'],
+              'originalName': uploadResult['file']['originalName'],
+              'fileType': uploadResult['file']['fileType'],
+              'fileSize': uploadResult['file']['fileSize'],
+              'filePath': uploadResult['file']['filePath'],
+            });
+            print('✅ Upload réussi: ${uploadResult['file']['originalName']}');
+          } else {
+            print('❌ Échec upload: ${uploadResult['message']}');
+          }
+        }
+      }
+      
+      print('📤 Total uploadés: ${uploadedFiles.length}');
       
       String? deadlineValue = null;
       if (_selectedType == 'Devoir') {
         if (_deadlineController.text.isEmpty) {
-          _showSnackBar('Veuillez entrer une date limite pour le devoir', Colors.orange);
+          _showSnackBar('Veuillez entrer une date limite', Colors.orange);
           setState(() => _isLoading = false);
           return;
         }
         deadlineValue = _deadlineController.text;
       }
       
-      print('📤 Envoi: Type=$_selectedType, Titre=${_titleController.text}, Date=$deadlineValue');
+      Map<String, dynamic> result;
       
       if (_isEditing && _editingId != null && _editingId!.isNotEmpty) {
         result = await ApiService.updateLesson(
           id: _editingId!,
           title: _titleController.text,
-          subject: subject,
+          subject: _selectedType == 'Rappel' ? '' : _selectedSubject,
           description: _descriptionController.text,
           type: _selectedType,
           deadline: deadlineValue,
-          files: fileNames,
+          files: uploadedFiles,
         );
       } else {
         result = await ApiService.addLesson(
           title: _titleController.text,
-          subject: subject,
+          subject: _selectedType == 'Rappel' ? '' : _selectedSubject,
           description: _descriptionController.text,
           type: _selectedType,
           className: widget.className,
           deadline: deadlineValue,
-          files: fileNames,
+          files: uploadedFiles,
         );
       }
-      
-      print('📡 Réponse: $result');
       
       if (result['success']) {
         await _loadData();
@@ -447,7 +455,207 @@ class _TeacherLessonsScreenState extends State<TeacherLessonsScreen> {
     );
   }
 
+  Future<void> _openFile(Map<String, dynamic> file) async {
+    try {
+      final String filename = file['filename'];
+      final String originalName = file['originalName'];
+      
+      print('📂 Ouverture du fichier: $originalName');
+      
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => const Center(child: CircularProgressIndicator()),
+      );
+      
+      final result = await ApiService.downloadFile(filename, originalName);
+      
+      if (mounted) Navigator.pop(context);
+      
+      if (result['success']) {
+        final String filePath = result['filePath'];
+        final String fileName = result['fileName'];
+        
+        if (fileName.toLowerCase().endsWith('.jpg') || 
+            fileName.toLowerCase().endsWith('.jpeg') || 
+            fileName.toLowerCase().endsWith('.png') || 
+            fileName.toLowerCase().endsWith('.gif') ||
+            fileName.toLowerCase().endsWith('.webp')) {
+          _showImageDialog(filePath, fileName);
+        } else {
+          await OpenFile.open(filePath);
+          _showSnackBar('✅ Fichier ouvert: $fileName', Colors.green);
+        }
+      } else {
+        _showSnackBar('❌ Erreur: ${result['message']}', Colors.red);
+      }
+    } catch (e) {
+      if (mounted) Navigator.pop(context);
+      _showSnackBar('Erreur lors de l\'ouverture du fichier', Colors.red);
+    }
+  }
+
+  void _showImageDialog(String filePath, String fileName) {
+    showDialog(
+      context: context,
+      builder: (context) => Dialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: const BoxDecoration(
+                color: Color(0xFF0288D1),
+                borderRadius: BorderRadius.only(
+                  topLeft: Radius.circular(20),
+                  topRight: Radius.circular(20),
+                ),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.image, color: Colors.white),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      fileName,
+                      style: const TextStyle(color: Colors.white),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.close, color: Colors.white),
+                    onPressed: () => Navigator.pop(context),
+                  ),
+                ],
+              ),
+            ),
+            InteractiveViewer(
+              minScale: 0.5,
+              maxScale: 4.0,
+              child: Image.file(
+                File(filePath),
+                fit: BoxFit.contain,
+                errorBuilder: (context, error, stackTrace) {
+                  return const Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.broken_image, size: 64, color: Colors.grey),
+                        SizedBox(height: 10),
+                        Text("Impossible d'afficher l'image"),
+                      ],
+                    ),
+                  );
+                },
+              ),
+            ),
+            const SizedBox(height: 16),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                TextButton.icon(
+                  onPressed: () async {
+                    await OpenFile.open(filePath);
+                  },
+                  icon: const Icon(Icons.open_in_browser),
+                  label: const Text('Ouvrir avec...'),
+                ),
+                const SizedBox(width: 16),
+                ElevatedButton.icon(
+                  onPressed: () => Navigator.pop(context),
+                  icon: const Icon(Icons.close),
+                  label: const Text('Fermer'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF0288D1),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showDetails(Map<String, dynamic> item, String type) {
+    List<dynamic> files = item['files'] ?? [];
+    
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(item['title'] ?? 'Détails'),
+        content: SizedBox(
+          width: MediaQuery.of(context).size.width * 0.8,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('Type: ${type == 'Rappels' ? 'Rappel' : type}'),
+              if (type != 'Rappels') ...[
+                const SizedBox(height: 8),
+                Text('Matière: ${item['subject'] ?? '-'}'),
+              ],
+              const SizedBox(height: 8),
+              Text('Date: ${item['date'] ?? item['deadline'] ?? '-'}'),
+              if (item['description'] != null && item['description'].isNotEmpty) ...[
+                const SizedBox(height: 8),
+                Text('Description: ${item['description']}'),
+              ],
+              if (files.isNotEmpty) ...[
+                const SizedBox(height: 16),
+                const Divider(),
+                const Text(
+                  '📎 Pièces jointes:',
+                  style: TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF0288D1)),
+                ),
+                const SizedBox(height: 8),
+                ...files.map((file) => ListTile(
+                  leading: _getFileIcon(file['fileType'] ?? '.file'),
+                  title: Text(file['originalName'] ?? 'Fichier'),
+                  subtitle: Text(_formatFileSize(file['fileSize'] ?? 0)),
+                  trailing: const Icon(Icons.download, color: Color(0xFF0288D1)),
+                  onTap: () => _openFile(file),
+                  dense: true,
+                )),
+              ],
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('FERMER'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Icon _getFileIcon(String fileType) {
+    if (fileType == '.pdf') {
+      return const Icon(Icons.picture_as_pdf, color: Colors.red);
+    } else if (fileType == '.jpg' || fileType == '.png' || fileType == '.jpeg' || fileType == '.webp') {
+      return const Icon(Icons.image, color: Colors.purple);
+    } else if (fileType == '.doc' || fileType == '.docx') {
+      return const Icon(Icons.description, color: Colors.blue);
+    } else if (fileType == '.xls' || fileType == '.xlsx') {
+      return const Icon(Icons.table_chart, color: Colors.green);
+    } else if (fileType == '.ppt' || fileType == '.pptx') {
+      return const Icon(Icons.slideshow, color: Colors.orange);
+    } else if (fileType == '.mp4') {
+      return const Icon(Icons.video_library, color: Colors.deepPurple);
+    } else if (fileType == '.mp3') {
+      return const Icon(Icons.audiotrack, color: Colors.teal);
+    } else {
+      return const Icon(Icons.insert_drive_file, color: Colors.grey);
+    }
+  }
+
   void _showFormDialog({bool isEditing = false}) {
+    _attachedFiles.clear();
+    
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -487,7 +695,7 @@ class _TeacherLessonsScreenState extends State<TeacherLessonsScreen> {
                         ),
                         const SizedBox(height: 20),
                         Text(
-                          isEditing ? '✏️ MODIFIER LE CONTENU' : '➕ AJOUTER UN CONTENU',
+                          isEditing ? '✏️ MODIFIER' : '➕ AJOUTER',
                           style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF01579B)),
                         ),
                         const SizedBox(height: 20),
@@ -535,26 +743,26 @@ class _TeacherLessonsScreenState extends State<TeacherLessonsScreen> {
                         
                         const SizedBox(height: 16),
                         
-                        // Matière
+                        // Matière (verrouillée à la matière de l'enseignant)
                         if (_selectedType != 'Rappel') ...[
                           const Text('Matière *', style: TextStyle(fontWeight: FontWeight.w600)),
                           const SizedBox(height: 8),
                           Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 12),
+                            padding: const EdgeInsets.all(12),
                             decoration: BoxDecoration(
-                              border: Border.all(color: Colors.grey.shade300),
+                              color: const Color(0xFF0288D1).withOpacity(0.1),
                               borderRadius: BorderRadius.circular(12),
+                              border: Border.all(color: const Color(0xFF0288D1).withOpacity(0.3)),
                             ),
-                            child: DropdownButton<String>(
-                              value: _selectedSubject,
-                              isExpanded: true,
-                              underline: const SizedBox(),
-                              items: _subjects.map((subject) {
-                                return DropdownMenuItem(value: subject, child: Text(subject));
-                              }).toList(),
-                              onChanged: (value) {
-                                setModalState(() => _selectedSubject = value!);
-                              },
+                            child: Row(
+                              children: [
+                                const Icon(Icons.menu_book, color: Color(0xFF0288D1)),
+                                const SizedBox(width: 12),
+                                Text(
+                                  _selectedSubject,
+                                  style: const TextStyle(fontWeight: FontWeight.w500),
+                                ),
+                              ],
                             ),
                           ),
                           const SizedBox(height: 16),
@@ -587,7 +795,6 @@ class _TeacherLessonsScreenState extends State<TeacherLessonsScreen> {
                           ),
                         ),
                         
-                        // Date limite (uniquement pour les devoirs)
                         if (_showDeadline) ...[
                           const SizedBox(height: 16),
                           const Text('Date limite *', style: TextStyle(fontWeight: FontWeight.w600)),
@@ -612,8 +819,22 @@ class _TeacherLessonsScreenState extends State<TeacherLessonsScreen> {
                               'Pièces jointes',
                               style: TextStyle(fontWeight: FontWeight.w600, fontSize: 16),
                             ),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFF0288D1),
+                                borderRadius: BorderRadius.circular(20),
+                              ),
+                              child: Text(
+                                '${_attachedFiles.length} fichier(s)',
+                                style: const TextStyle(color: Colors.white, fontSize: 12),
+                              ),
+                            ),
                             ElevatedButton.icon(
-                              onPressed: _showAttachmentOptions,
+                              onPressed: () {
+                                _showAttachmentOptions();
+                                setModalState(() {});
+                              },
                               icon: const Icon(Icons.add, size: 18),
                               label: const Text('Ajouter'),
                               style: ElevatedButton.styleFrom(
@@ -625,6 +846,7 @@ class _TeacherLessonsScreenState extends State<TeacherLessonsScreen> {
                             ),
                           ],
                         ),
+                        
                         const SizedBox(height: 12),
                         
                         // Liste des fichiers attachés
@@ -684,7 +906,9 @@ class _TeacherLessonsScreenState extends State<TeacherLessonsScreen> {
                             const SizedBox(width: 16),
                             Expanded(
                               child: ElevatedButton(
-                                onPressed: _saveContent,
+                                onPressed: () {
+                                  _saveContent();
+                                },
                                 style: ElevatedButton.styleFrom(
                                   backgroundColor: const Color(0xFF0288D1),
                                   padding: const EdgeInsets.symmetric(vertical: 15),
@@ -726,9 +950,16 @@ class _TeacherLessonsScreenState extends State<TeacherLessonsScreen> {
     } else if (name.toLowerCase().endsWith('.ppt') || name.toLowerCase().endsWith('.pptx')) {
       icon = Icons.slideshow;
       color = Colors.orange;
-    } else if (name.toLowerCase().endsWith('.jpg') || name.toLowerCase().endsWith('.png') || name.toLowerCase().endsWith('.jpeg')) {
+    } else if (name.toLowerCase().endsWith('.jpg') || name.toLowerCase().endsWith('.png') || 
+               name.toLowerCase().endsWith('.jpeg') || name.toLowerCase().endsWith('.webp')) {
       icon = Icons.image;
       color = Colors.purple;
+    } else if (name.toLowerCase().endsWith('.mp4')) {
+      icon = Icons.video_library;
+      color = Colors.deepPurple;
+    } else if (name.toLowerCase().endsWith('.mp3')) {
+      icon = Icons.audiotrack;
+      color = Colors.teal;
     } else {
       icon = Icons.insert_drive_file;
       color = Colors.grey;
@@ -775,48 +1006,29 @@ class _TeacherLessonsScreenState extends State<TeacherLessonsScreen> {
     );
   }
 
-  String _formatFileSize(int size) {
-    if (size < 1024) return '$size B';
-    if (size < 1024 * 1024) return '${(size / 1024).toStringAsFixed(1)} KB';
-    return '${(size / (1024 * 1024)).toStringAsFixed(1)} MB';
-  }
-
-  void _showAddDialog() {
+  void _editContent(Map<String, dynamic> item, String type) {
     _resetForm();
-    _showFormDialog(isEditing: false);
-  }
-
-  void _showDetails(Map<String, dynamic> item, String type) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text(item['title'] ?? 'Détails'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('Type: ${type == 'Rappels' ? 'Rappel' : type}'),
-            if (type != 'Rappels') ...[
-              const SizedBox(height: 8),
-              Text('Matière: ${item['subject'] ?? '-'}'),
-            ],
-            const SizedBox(height: 8),
-            Text('Date: ${item['date'] ?? item['deadline'] ?? '-'}'),
-            if (item['description'] != null && item['description'].isNotEmpty) ...[
-              const SizedBox(height: 8),
-              Text('Description: ${item['description']}'),
-            ],
-            if (item['hasFiles'] == true) ...[
-              const SizedBox(height: 8),
-              const Text('📎 Fichier(s) joint(s)', style: TextStyle(color: Colors.blue)),
-            ],
-          ],
-        ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('FERMER')),
-        ],
-      ),
-    );
+    _isEditing = true;
+    _editingId = item['id'].toString();
+    _editingType = type;
+    _selectedType = type;
+    
+    _titleController.text = item['title'] ?? '';
+    _descriptionController.text = item['description'] ?? '';
+    
+    if (type == 'Rappel') {
+      _selectedSubject = widget.teacherSubject;
+      _showDeadline = false;
+    } else if (type == 'Cours') {
+      _selectedSubject = item['subject'] ?? widget.teacherSubject;
+      _showDeadline = false;
+    } else if (type == 'Devoir') {
+      _selectedSubject = item['subject'] ?? widget.teacherSubject;
+      _showDeadline = true;
+      _deadlineController.text = item['deadline'] ?? '';
+    }
+    
+    _showFormDialog(isEditing: true);
   }
 
   @override
@@ -824,9 +1036,10 @@ class _TeacherLessonsScreenState extends State<TeacherLessonsScreen> {
     return Scaffold(
       backgroundColor: const Color(0xFFF5F7FA),
       appBar: AppBar(
-        title: const Text('Contenus pédagogiques'),
+        title: const Text('Mes contenus'),
         backgroundColor: const Color(0xFF01579B),
         foregroundColor: Colors.white,
+        elevation: 0,
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh),
@@ -845,7 +1058,13 @@ class _TeacherLessonsScreenState extends State<TeacherLessonsScreen> {
               decoration: BoxDecoration(
                 color: Colors.white,
                 borderRadius: BorderRadius.circular(30),
-                boxShadow: [BoxShadow(color: Colors.grey.withOpacity(0.1), blurRadius: 10, offset: const Offset(0, 4))],
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.grey.withOpacity(0.1),
+                    blurRadius: 10,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
               ),
               child: Row(
                 children: List.generate(_tabs.length, (index) {
@@ -855,14 +1074,18 @@ class _TeacherLessonsScreenState extends State<TeacherLessonsScreen> {
                       child: Container(
                         padding: const EdgeInsets.symmetric(vertical: 12),
                         decoration: BoxDecoration(
-                          color: _selectedTab == index ? const Color(0xFF0288D1) : Colors.transparent,
+                          color: _selectedTab == index
+                              ? const Color(0xFF0288D1)
+                              : Colors.transparent,
                           borderRadius: BorderRadius.circular(30),
                         ),
                         child: Text(
                           _tabs[index],
                           textAlign: TextAlign.center,
                           style: TextStyle(
-                            color: _selectedTab == index ? Colors.white : Colors.grey[700],
+                            color: _selectedTab == index
+                                ? Colors.white
+                                : Colors.grey[700],
                             fontWeight: FontWeight.w500,
                           ),
                         ),
@@ -873,9 +1096,7 @@ class _TeacherLessonsScreenState extends State<TeacherLessonsScreen> {
               ),
             ),
           ),
-
           const SizedBox(height: 20),
-
           Expanded(
             child: _isLoading
                 ? const Center(child: CircularProgressIndicator())
@@ -888,7 +1109,7 @@ class _TeacherLessonsScreenState extends State<TeacherLessonsScreen> {
         ],
       ),
       floatingActionButton: FloatingActionButton(
-        onPressed: _showAddDialog,
+        onPressed: () => _showFormDialog(),
         backgroundColor: const Color(0xFF0288D1),
         child: const Icon(Icons.add, color: Colors.white),
       ),
@@ -903,10 +1124,13 @@ class _TeacherLessonsScreenState extends State<TeacherLessonsScreen> {
           children: [
             Icon(Icons.folder_open, size: 80, color: Colors.grey[400]),
             const SizedBox(height: 16),
-            Text('Aucun ${type.toLowerCase()}s', style: TextStyle(fontSize: 16, color: Colors.grey[600])),
+            Text(
+              'Aucun ${type.toLowerCase()}',
+              style: TextStyle(fontSize: 16, color: Colors.grey[600]),
+            ),
             const SizedBox(height: 8),
             TextButton.icon(
-              onPressed: _showAddDialog,
+              onPressed: () => _showFormDialog(),
               icon: const Icon(Icons.add),
               label: const Text('Ajouter'),
             ),
@@ -922,34 +1146,52 @@ class _TeacherLessonsScreenState extends State<TeacherLessonsScreen> {
         itemCount: items.length,
         itemBuilder: (context, index) {
           final item = items[index];
-          final displayType = type == 'Devoir' ? 'Devoir' : (type == 'Rappels' ? 'Rappel' : type);
-          
+          final displayType = type == 'Devoir'
+              ? 'Devoir'
+              : (type == 'Rappels' ? 'Rappel' : type);
+
           return Card(
             margin: const EdgeInsets.only(bottom: 12),
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+            ),
             child: ListTile(
               contentPadding: const EdgeInsets.all(16),
               leading: Container(
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  color: (type == 'Devoir' ? const Color(0xFF4CAF9F) : const Color(0xFF0288D1)).withOpacity(0.1),
+                  color: (type == 'Devoir'
+                          ? const Color(0xFF4CAF9F)
+                          : const Color(0xFF0288D1))
+                      .withOpacity(0.1),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Icon(
-                  type == 'Cours' ? Icons.menu_book : type == 'Devoir' ? Icons.assignment : Icons.notifications,
-                  color: type == 'Devoir' ? const Color(0xFF4CAF9F) : const Color(0xFF0288D1),
+                  type == 'Cours'
+                      ? Icons.menu_book
+                      : (type == 'Devoir' ? Icons.assignment : Icons.notifications),
+                  color: type == 'Devoir'
+                      ? const Color(0xFF4CAF9F)
+                      : const Color(0xFF0288D1),
                 ),
               ),
-              title: Text(item['title'] ?? '', style: const TextStyle(fontWeight: FontWeight.bold)),
+              title: Text(
+                item['title'] ?? '',
+                style: const TextStyle(fontWeight: FontWeight.bold),
+              ),
               subtitle: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   if (type != 'Rappels')
-                    Text('${item['subject'] ?? ''} • ${item['date'] ?? item['deadline'] ?? ''}')
+                    Text(
+                        '${item['subject'] ?? ''} • ${item['date'] ?? item['deadline'] ?? ''}')
                   else
                     Text(item['date'] ?? ''),
                   if (item['hasFiles'] == true)
-                    const Text('📎 Fichier joint', style: TextStyle(fontSize: 12, color: Colors.grey)),
+                    const Text(
+                      '📎 Fichier joint',
+                      style: TextStyle(fontSize: 12, color: Colors.grey),
+                    ),
                 ],
               ),
               trailing: Row(

@@ -1,25 +1,41 @@
 const jwt = require('jsonwebtoken');
-const User = require('../models/User');
+const Student = require('../models/Student');
+const Teacher = require('../models/Teacher');
+const Parent = require('../models/Parent');
+const Admin = require('../models/Admin');
 
 const protect = async (req, res, next) => {
   let token;
 
-  console.log('🔍 Headers reçus:', req.headers);
-
   if (req.headers.authorization && req.headers.authorization.startsWith('Bearer')) {
     try {
       token = req.headers.authorization.split(' ')[1];
-      console.log('🔑 Token extrait:', token.substring(0, 20) + '...');
-      
       const decoded = jwt.verify(token, process.env.JWT_SECRET);
-      console.log('👤 Utilisateur décodé:', decoded);
       
-      req.user = await User.findById(decoded.id).select('-password');
-      console.log('✅ Utilisateur trouvé:', req.user?.email);
+      // Chercher l'utilisateur selon le rôle stocké dans le token
+      switch(decoded.role) {
+        case 'student':
+          req.user = await Student.findById(decoded.id).select('-password');
+          break;
+        case 'teacher':
+          req.user = await Teacher.findById(decoded.id).select('-password');
+          break;
+        case 'parent':
+          req.user = await Parent.findById(decoded.id).select('-password');
+          break;
+        case 'admin':
+          req.user = await Admin.findById(decoded.id).select('-password');
+          break;
+        default:
+          req.user = null;
+      }
       
       if (!req.user) {
         return res.status(401).json({ message: 'Utilisateur non trouvé' });
       }
+      
+      // Ajouter le rôle à req.user pour faciliter l'accès
+      req.user.role = decoded.role;
       
       next();
     } catch (error) {
@@ -27,8 +43,6 @@ const protect = async (req, res, next) => {
       return res.status(401).json({ message: 'Token invalide' });
     }
   } else {
-    console.log('❌ Pas de Bearer token dans Authorization');
-    console.log('Authorization header:', req.headers.authorization);
     return res.status(401).json({ message: 'Non autorisé, pas de token' });
   }
 };

@@ -28,7 +28,7 @@ class _AdminAddClassScreenState extends State<AdminAddClassScreen> {
     'Bibliothèque', 'Gymnase', 'Salle de sport'
   ];
   
-  final List<String> _days = ['L', 'M', 'M', 'J', 'V', 'S'];
+  final List<String> _days = ['Lu', 'Ma', 'Me', 'Je', 'Ve', 'Sa'];
   final List<String> _fullDays = ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi'];
   
   final List<String> _allTimeSlots = [
@@ -37,14 +37,12 @@ class _AdminAddClassScreenState extends State<AdminAddClassScreen> {
   
   final List<String> _subjects = [
     'Maths', 'Français', 'Arabe', 'Anglais', 'Sciences', 
-    'Histoire', 'Géo', 'Islamique', 'EPS', 'Arts', 
-    'Musique', 'Techno', 'Info', 'Physique', 'Chimie',
-    'Étude', 'Permanence', 'Sport', 'Dessin'
+    'Islamique', 'Dessin', 'Musique', 'Sport', 'Informatique'
   ];
   
   late Map<String, Map<int, Map<String, String>>> _schedule;
   
-  String _selectedDay = 'L';
+  String _selectedDay = 'Lu';
   int _selectedSlot = 0;
   String _selectedSubject = '';
   String _selectedTeacher = '';
@@ -55,7 +53,8 @@ class _AdminAddClassScreenState extends State<AdminAddClassScreen> {
     '1ère année', '2ème année', '3ème année', '4ème année', '5ème année', '6ème année'
   ];
   
-  final List<String> _groups = ['A', 'B'];
+  // MODIFICATION: Groupes A, B, C, D
+  final List<String> _groups = ['A', 'B', 'C', 'D'];
 
   @override
   void initState() {
@@ -283,12 +282,12 @@ class _AdminAddClassScreenState extends State<AdminAddClassScreen> {
 
   String _getFullDay(String day) {
     switch(day) {
-      case 'L': return 'Lundi';
-      case 'M': return 'Mardi';
-      case 'M': return 'Mercredi';
-      case 'J': return 'Jeudi';
-      case 'V': return 'Vendredi';
-      case 'S': return 'Samedi';
+      case 'Lu': return 'Lundi';
+      case 'Ma': return 'Mardi';
+      case 'Me': return 'Mercredi';
+      case 'Je': return 'Jeudi';
+      case 'Ve': return 'Vendredi';
+      case 'Sa': return 'Samedi';
       default: return day;
     }
   }
@@ -319,7 +318,75 @@ class _AdminAddClassScreenState extends State<AdminAddClassScreen> {
     ));
   }
 
-  Future<void> _createClassAndSchedule() async {
+  Future<void> _createClassOnly() async {
+    if (_selectedLevel == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Veuillez sélectionner une année'), backgroundColor: Colors.orange),
+      );
+      return;
+    }
+    
+    if (_selectedGroup == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Veuillez sélectionner un groupe'), backgroundColor: Colors.orange),
+      );
+      return;
+    }
+
+    setState(() => _isLoading = true);
+
+    try {
+      final String level = _selectedLevel!;
+      final String group = _selectedGroup!;
+      final String className = '$level $group';
+      final int capacity = int.tryParse(_capacityController.text) ?? 30;
+      
+      final classResult = await ApiService.addClass(
+        level: level,
+        group: group,
+        className: className,
+        teacher: '',
+        capacity: capacity,
+        room: '',
+      );
+
+      if (classResult['success'] != true) {
+        throw Exception(classResult['message'] ?? 'Erreur inconnue');
+      }
+
+      if (mounted) {
+        showDialog(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: const Text('✅ Succès'),
+            content: Text('Classe "$className" créée avec succès !'),
+            actions: [
+              TextButton(
+                onPressed: () {
+                  Navigator.pop(context);
+                  Navigator.pop(context, true);
+                },
+                child: const Text('OK'),
+              ),
+            ],
+          ),
+        );
+      }
+    } catch (e) {
+      print('❌ Erreur: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('❌ Erreur: ${e.toString()}'), backgroundColor: Colors.red),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
+    }
+  }
+
+  Future<void> _createClassWithSchedule() async {
     if (_selectedLevel == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Veuillez sélectionner une année'), backgroundColor: Colors.orange),
@@ -339,7 +406,7 @@ class _AdminAddClassScreenState extends State<AdminAddClassScreen> {
       final total = _days.length * _allTimeSlots.length;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('⚠️ Agenda incomplet: $filled/$total créneaux remplis. Remplissez toutes les heures !'),
+          content: Text('⚠️ Agenda incomplet: $filled/$total créneaux remplis. Remplissez toutes les heures ou cliquez sur "IGNORER"'),
           backgroundColor: Colors.orange,
           duration: const Duration(seconds: 3),
         ),
@@ -373,38 +440,44 @@ class _AdminAddClassScreenState extends State<AdminAddClassScreen> {
         scheduleToSave[day] = {};
         for (int i = 0; i < _allTimeSlots.length; i++) {
           final course = _schedule[day]?[i];
-          scheduleToSave[day][i] = {
+          final Map<String, dynamic> courseData = {
             'subject': course?['subject'] ?? '',
             'teacher': course?['teacher'] ?? '',
             'room': course?['room'] ?? '',
           };
+          scheduleToSave[day][i.toString()] = courseData;
         }
       }
-
-      await ApiService.saveSchedule(
+      
+      final scheduleResult = await ApiService.saveSchedule(
         className: className,
         schedule: scheduleToSave,
       );
 
       if (mounted) {
-        showDialog(
-          context: context,
-          builder: (context) => AlertDialog(
-            title: const Text('✅ Succès'),
-            content: Text('Classe "$className" créée avec son agenda complet !'),
-            actions: [
-              TextButton(
-                onPressed: () {
-                  Navigator.pop(context);
-                  Navigator.pop(context, true);
-                },
-                child: const Text('OK'),
-              ),
-            ],
-          ),
-        );
+        if (scheduleResult['success'] == true) {
+          showDialog(
+            context: context,
+            builder: (context) => AlertDialog(
+              title: const Text('✅ Succès'),
+              content: Text('Classe "$className" créée avec son agenda complet !'),
+              actions: [
+                TextButton(
+                  onPressed: () {
+                    Navigator.pop(context);
+                    Navigator.pop(context, true);
+                  },
+                  child: const Text('OK'),
+                ),
+              ],
+            ),
+          );
+        } else {
+          throw Exception(scheduleResult['message'] ?? 'Erreur lors de la sauvegarde de l\'agenda');
+        }
       }
     } catch (e) {
+      print('❌ Erreur détaillée: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('❌ Erreur: ${e.toString()}'), backgroundColor: Colors.red),
@@ -415,6 +488,36 @@ class _AdminAddClassScreenState extends State<AdminAddClassScreen> {
         setState(() => _isLoading = false);
       }
     }
+  }
+
+  void _showCreateOptions() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Création de la classe'),
+        content: const Text('Voulez-vous créer un agenda pour cette classe maintenant ?'),
+        actions: [
+          TextButton(
+            onPressed: () {
+              Navigator.pop(context);
+              _createClassOnly();
+            },
+            child: const Text('IGNORER'),
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.pop(context);
+              _nextStep();
+            },
+            style: TextButton.styleFrom(
+              backgroundColor: const Color(0xFF0288D1),
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('CRÉER AGENDA'),
+          ),
+        ],
+      ),
+    );
   }
 
   @override
@@ -445,10 +548,15 @@ class _AdminAddClassScreenState extends State<AdminAddClassScreen> {
         backgroundColor: const Color(0xFF0288D1),
         foregroundColor: Colors.white,
         elevation: 0,
-        leading: _isStep1 ? null : IconButton(
-          icon: const Icon(Icons.arrow_back),
-          onPressed: _previousStep,
-        ),
+        leading: _isStep1 
+            ? IconButton(
+                icon: const Icon(Icons.arrow_back),
+                onPressed: () => Navigator.pop(context),
+              )
+            : IconButton(
+                icon: const Icon(Icons.arrow_back),
+                onPressed: _previousStep,
+              ),
       ),
       body: _isStep1 ? _buildStep1() : _buildStep2(),
     );
@@ -539,9 +647,14 @@ class _AdminAddClassScreenState extends State<AdminAddClassScreen> {
                     boxShadow: [BoxShadow(color: const Color(0xFF4CAF9F).withOpacity(0.3), blurRadius: 15, offset: const Offset(0, 8))],
                   ),
                   child: ElevatedButton(
-                    onPressed: _nextStep,
-                    style: ElevatedButton.styleFrom(backgroundColor: Colors.transparent, shadowColor: Colors.transparent),
-                    child: const Text('SUIVANT → AGENDA', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white)),
+                    onPressed: () => _showCreateOptions(),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.transparent, 
+                      shadowColor: Colors.transparent,
+                    ),
+                    child: _isLoading
+                        ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                        : const Text('CRÉER LA CLASSE', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white)),
                   ),
                 ),
                 const SizedBox(height: 16),
@@ -704,15 +817,15 @@ class _AdminAddClassScreenState extends State<AdminAddClassScreen> {
               const SizedBox(width: 16),
               Expanded(
                 child: ElevatedButton(
-                  onPressed: (isComplete && !_isLoading) ? _createClassAndSchedule : null,
+                  onPressed: _isLoading ? null : _createClassWithSchedule,
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: isComplete ? const Color(0xFF0288D1) : Colors.grey,
+                    backgroundColor: const Color(0xFF0288D1),
                     padding: const EdgeInsets.symmetric(vertical: 12),
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                   ),
                   child: _isLoading
                       ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                      : const Text('CRÉER LA CLASSE'),
+                      : const Text('VALIDER ET CRÉER'),
                 ),
               ),
             ],

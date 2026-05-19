@@ -7,6 +7,7 @@ import 'admin_stats_screen.dart';
 import 'admin_profile_screen.dart';
 import 'admin_add_teacher_screen.dart';
 import 'admin_add_class_screen.dart';
+import 'admin_schedule_screen.dart';
 
 class AdminDashboardScreen extends StatefulWidget {
   final String email;
@@ -37,7 +38,8 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
     {'icon': Icons.people, 'label': 'Utilisateurs', 'page': 1},
     {'icon': Icons.class_, 'label': 'Classes', 'page': 2},
     {'icon': Icons.bar_chart, 'label': 'Statistiques', 'page': 3},
-    {'icon': Icons.person, 'label': 'Profil', 'page': 4},
+    {'icon': Icons.calendar_month, 'label': 'Emploi', 'page': 4},
+    {'icon': Icons.person, 'label': 'Profil', 'page': 5},
   ];
 
   late List<Widget> _pages;
@@ -46,6 +48,10 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
   void initState() {
     super.initState();
     _loadStats();
+    _initPages();
+  }
+
+  void _initPages() {
     _pages = [
       AdminHomePage(
         totalTeachers: _totalTeachers,
@@ -62,7 +68,8 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
       ),
       AdminUsersScreen(adminEmail: widget.email, initialTab: 0),
       AdminClassesScreen(adminEmail: widget.email),
-      AdminStatsScreen(adminEmail: widget.email),
+      AdminStatsScreen(adminEmail: widget.email),  // Page stats réelle
+      AdminScheduleScreen(adminEmail: widget.email),
       AdminProfileScreen(adminEmail: widget.email, adminName: widget.adminName),
     ];
   }
@@ -74,35 +81,40 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
       final result = await ApiService.getDashboardStats();
       
       if (result['success']) {
+        final stats = result['stats'];
         setState(() {
-          _totalTeachers = result['stats']['totalTeachers'] ?? 0;
-          _totalParents = result['stats']['totalParents'] ?? 0;
-          _totalStudents = result['stats']['totalStudents'] ?? 0;
-          _pendingTeachers = result['stats']['pendingTeachers'] ?? 0;
-          _totalClasses = result['stats']['totalClasses'] ?? 0;
+          _totalTeachers = stats['totalTeachers'] ?? 0;
+          _totalParents = stats['totalParents'] ?? 0;
+          _totalStudents = stats['totalStudents'] ?? 0;
+          _pendingTeachers = stats['pendingTeachers'] ?? 0;
+          _totalClasses = stats['totalClasses'] ?? 0;
           _isLoading = false;
         });
         
-        // Mettre à jour la page d'accueil
-        _pages[0] = AdminHomePage(
-          totalTeachers: _totalTeachers,
-          totalParents: _totalParents,
-          totalStudents: _totalStudents,
-          pendingTeachers: _pendingTeachers,
-          totalClasses: _totalClasses,
-          onAddTeacher: _navigateToAddTeacher,
-          onAddClass: _navigateToAddClass,
-          onViewTeachers: () => _navigateToUsersTab(0),
-          onViewParents: () => _navigateToUsersTab(1),
-          onViewStudents: () => _navigateToUsersTab(2),
-          onViewClasses: () => _navigateToPage(2),
-        );
+        _updateHomePage();
       } else {
         setState(() => _isLoading = false);
       }
     } catch (e) {
+      print('❌ Exception: $e');
       setState(() => _isLoading = false);
     }
+  }
+
+  void _updateHomePage() {
+    _pages[0] = AdminHomePage(
+      totalTeachers: _totalTeachers,
+      totalParents: _totalParents,
+      totalStudents: _totalStudents,
+      pendingTeachers: _pendingTeachers,
+      totalClasses: _totalClasses,
+      onAddTeacher: _navigateToAddTeacher,
+      onAddClass: _navigateToAddClass,
+      onViewTeachers: () => _navigateToUsersTab(0),
+      onViewParents: () => _navigateToUsersTab(1),
+      onViewStudents: () => _navigateToUsersTab(2),
+      onViewClasses: () => _navigateToPage(2),
+    );
   }
 
   void _navigateToAddTeacher() async {
@@ -157,7 +169,6 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
       backgroundColor: const Color(0xFFF5F7FA),
       body: Column(
         children: [
-          // En-tête avec dégradé bleu
           Container(
             padding: const EdgeInsets.all(16),
             decoration: const BoxDecoration(
@@ -230,12 +241,12 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
             ),
           ),
 
-          // Contenu principal
           Expanded(
-            child: _pages[_selectedIndex],
+            child: _isLoading
+                ? const Center(child: CircularProgressIndicator())
+                : _pages[_selectedIndex],
           ),
 
-          // Barre de navigation en bas
           Container(
             decoration: BoxDecoration(
               color: Colors.white,
@@ -266,13 +277,13 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                           color: _selectedIndex == index
                               ? const Color(0xFF0288D1)
                               : Colors.grey,
-                          size: 20,
+                          size: 22,
                         ),
                         const SizedBox(height: 2),
                         Text(
                           _menuItems[index]['label'],
                           style: TextStyle(
-                            fontSize: 10,
+                            fontSize: 11,
                             color: _selectedIndex == index
                                 ? const Color(0xFF0288D1)
                                 : Colors.grey,
@@ -291,7 +302,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
   }
 }
 
-// Page d'accueil avec aperçu rapide
+// Page d'accueil
 class AdminHomePage extends StatelessWidget {
   final int totalTeachers;
   final int totalParents;
@@ -322,192 +333,207 @@ class AdminHomePage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(12),
-      child: Column(
-        children: [
-          // Carte de bienvenue
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              gradient: const LinearGradient(
-                colors: [Color(0xFF0288D1), Color(0xFF4FC3F7)],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              ),
-              borderRadius: BorderRadius.circular(16),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  'Bienvenue 👋',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  'Gérez votre établissement scolaire',
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: Colors.white.withOpacity(0.9),
-                  ),
-                ),
-              ],
-            ),
-          ),
-
-          const SizedBox(height: 12),
-
-          // Statistiques
-          GridView.count(
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            crossAxisCount: 2,
-            crossAxisSpacing: 10,
-            mainAxisSpacing: 10,
-            childAspectRatio: 1.3,
-            children: [
-              _buildStatCard(
-                title: 'Enseignants',
-                value: '$totalTeachers',
-                icon: Icons.people,
-                color: const Color(0xFF0288D1),
-                onTap: onViewTeachers,
-              ),
-              _buildStatCard(
-                title: 'Élèves',
-                value: '$totalStudents',
-                icon: Icons.school,
-                color: const Color(0xFF4CAF9F),
-                onTap: onViewStudents,
-              ),
-              _buildStatCard(
-                title: 'Classes',
-                value: '$totalClasses',
-                icon: Icons.class_,
-                color: const Color(0xFFFF9800),
-                onTap: onViewClasses,
-              ),
-              _buildStatCard(
-                title: 'Parents',
-                value: '$totalParents',
-                icon: Icons.family_restroom,
-                color: const Color(0xFF9C27B0),
-                onTap: onViewParents,
-              ),
-            ],
-          ),
-
-          const SizedBox(height: 12),
-
-          // Alertes
-          if (pendingTeachers > 0)
+    return RefreshIndicator(
+      onRefresh: () async {},
+      child: SingleChildScrollView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          children: [
             Container(
-              padding: const EdgeInsets.all(12),
+              width: double.infinity,
+              padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: Colors.orange.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: Colors.orange.withOpacity(0.3)),
+                gradient: const LinearGradient(
+                  colors: [Color(0xFF0288D1), Color(0xFF4FC3F7)],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+                borderRadius: BorderRadius.circular(16),
               ),
-              child: Row(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  const Text(
+                    'Bienvenue 👋',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'Gérez votre établissement scolaire',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: Colors.white.withOpacity(0.9),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
                   Container(
-                    padding: const EdgeInsets.all(6),
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                     decoration: BoxDecoration(
-                      color: Colors.orange.withOpacity(0.2),
-                      borderRadius: BorderRadius.circular(8),
+                      color: Colors.white.withOpacity(0.2),
+                      borderRadius: BorderRadius.circular(12),
                     ),
-                    child: const Icon(Icons.warning, color: Colors.orange, size: 18),
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text(
-                          'Enseignants en attente',
-                          style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 12,
-                          ),
-                        ),
-                        Text(
-                          '$pendingTeachers enseignant(s) à valider',
-                          style: const TextStyle(fontSize: 11),
-                        ),
-                      ],
+                    child: Text(
+                      '${DateTime.now().day}/${DateTime.now().month}/${DateTime.now().year}',
+                      style: const TextStyle(
+                        fontSize: 10,
+                        color: Colors.white,
+                      ),
                     ),
-                  ),
-                  TextButton(
-                    onPressed: onViewTeachers,
-                    style: TextButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                      minimumSize: Size.zero,
-                    ),
-                    child: const Text('VALIDER', style: TextStyle(fontSize: 11)),
                   ),
                 ],
               ),
             ),
 
-          const SizedBox(height: 12),
+            const SizedBox(height: 12),
 
-          // Actions rapides
-          Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(16),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.grey.withOpacity(0.05),
-                  blurRadius: 8,
-                  offset: const Offset(0, 2),
+            GridView.count(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              crossAxisCount: 2,
+              crossAxisSpacing: 10,
+              mainAxisSpacing: 10,
+              childAspectRatio: 1.3,
+              children: [
+                _buildStatCard(
+                  title: 'Enseignants',
+                  value: '$totalTeachers',
+                  icon: Icons.people,
+                  color: const Color(0xFF0288D1),
+                  onTap: onViewTeachers,
+                ),
+                _buildStatCard(
+                  title: 'Élèves',
+                  value: '$totalStudents',
+                  icon: Icons.school,
+                  color: const Color(0xFF4CAF9F),
+                  onTap: onViewStudents,
+                ),
+                _buildStatCard(
+                  title: 'Classes',
+                  value: '$totalClasses',
+                  icon: Icons.class_,
+                  color: const Color(0xFFFF9800),
+                  onTap: onViewClasses,
+                ),
+                _buildStatCard(
+                  title: 'Parents',
+                  value: '$totalParents',
+                  icon: Icons.family_restroom,
+                  color: const Color(0xFF9C27B0),
+                  onTap: onViewParents,
                 ),
               ],
             ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  '⚡ Actions rapides',
-                  style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.bold,
-                    color: Color(0xFF01579B),
-                  ),
+
+            const SizedBox(height: 12),
+
+            if (pendingTeachers > 0)
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.orange.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: Colors.orange.withOpacity(0.3)),
                 ),
-                const SizedBox(height: 10),
-                Row(
+                child: Row(
                   children: [
-                    Expanded(
-                      child: _buildQuickAction(
-                        icon: Icons.person_add,
-                        label: 'Enseignant',
-                        color: Colors.orange,
-                        onTap: onAddTeacher,
+                    Container(
+                      padding: const EdgeInsets.all(6),
+                      decoration: BoxDecoration(
+                        color: Colors.orange.withOpacity(0.2),
+                        borderRadius: BorderRadius.circular(8),
                       ),
+                      child: const Icon(Icons.warning, color: Colors.orange, size: 18),
                     ),
                     const SizedBox(width: 10),
                     Expanded(
-                      child: _buildQuickAction(
-                        icon: Icons.add_box,
-                        label: 'Classe',
-                        color: Colors.green,
-                        onTap: onAddClass,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            'Enseignants en attente',
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 12,
+                            ),
+                          ),
+                          Text(
+                            '$pendingTeachers enseignant(s) à valider',
+                            style: const TextStyle(fontSize: 11),
+                          ),
+                        ],
                       ),
+                    ),
+                    TextButton(
+                      onPressed: onViewTeachers,
+                      style: TextButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        minimumSize: Size.zero,
+                      ),
+                      child: const Text('VALIDER', style: TextStyle(fontSize: 11)),
                     ),
                   ],
                 ),
-              ],
+              ),
+
+            const SizedBox(height: 12),
+
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(16),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.grey.withOpacity(0.05),
+                    blurRadius: 8,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    '⚡ Actions rapides',
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.bold,
+                      color: Color(0xFF01579B),
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _buildQuickAction(
+                          icon: Icons.person_add,
+                          label: 'Enseignant',
+                          color: Colors.orange,
+                          onTap: onAddTeacher,
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: _buildQuickAction(
+                          icon: Icons.add_box,
+                          label: 'Classe',
+                          color: Colors.green,
+                          onTap: onAddClass,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
