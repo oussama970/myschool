@@ -1,8 +1,11 @@
 // backend/src/controllers/agendaEventController.js
+/// Contrôleur pour la gestion des événements agenda (examens, évaluations)
+/// Permet de créer, lire, supprimer des événements et de récupérer les notes associées
+
 const AgendaEvent = require('../models/AgendaEvent');
 const ExamGrade = require('../models/ExamGrade'); // ✅ AJOUTER CET IMPORT
 
-// Récupérer tous les événements d'une classe pour un enseignant spécifique
+/// Récupère tous les événements d'une classe pour un enseignant spécifique
 const getEventsByClass = async (req, res) => {
   try {
     const { className } = req.params;
@@ -29,7 +32,7 @@ const getEventsByClass = async (req, res) => {
   }
 };
 
-// Ajouter un événement
+/// Ajoute un nouvel événement agenda (examen, évaluation orale, etc.)
 const addEvent = async (req, res) => {
   try {
     const { className, subject, type, day, timeSlot, date, teacherId, teacherName } = req.body;
@@ -41,10 +44,12 @@ const addEvent = async (req, res) => {
     console.log('Horaire:', timeSlot);
     console.log('Date:', date);
     
+    // Validation des champs requis
     if (!className || !subject || !type || !day || !timeSlot || !date) {
       return res.status(400).json({ success: false, message: 'Tous les champs sont requis' });
     }
     
+    // Validation du type d'événement
     const validTypes = ['Orale', 'Evaluation', 'Examen'];
     if (!validTypes.includes(type)) {
       return res.status(400).json({ 
@@ -76,7 +81,7 @@ const addEvent = async (req, res) => {
   }
 };
 
-// Supprimer un événement
+/// Supprime un événement agenda (vérification de l'autorisation)
 const deleteEvent = async (req, res) => {
   try {
     const { id } = req.params;
@@ -89,6 +94,7 @@ const deleteEvent = async (req, res) => {
       return res.status(404).json({ success: false, message: 'Événement non trouvé' });
     }
     
+    // Vérification que l'utilisateur est autorisé à supprimer l'événement
     if (event.teacherId.toString() !== req.user._id.toString()) {
       return res.status(403).json({ success: false, message: 'Non autorisé' });
     }
@@ -102,7 +108,7 @@ const deleteEvent = async (req, res) => {
   }
 };
 
-// ✅ NOUVELLE FONCTION: Récupérer tous les examens d'une classe avec les notes
+/// Récupère tous les examens d'une classe avec les notes d'un élève spécifique
 const getAllExamsByClass = async (req, res) => {
   try {
     const { className } = req.params;
@@ -116,11 +122,11 @@ const getAllExamsByClass = async (req, res) => {
     // Récupérer TOUS les examens de la classe
     const events = await AgendaEvent.find({ className: decodedClassName }).sort({ date: -1 });
     
-    // Récupérer les notes de l'élève
+    // Récupérer les notes de l'élève (s'il est fourni)
     let gradesMap = {};
     if (studentId) {
       const grades = await ExamGrade.find({ studentId: studentId });
-      for (var grade of grades) {
+      for (let grade of grades) {
         gradesMap[grade.examId.toString()] = {
           grade: grade.grade,
           appreciation: grade.appreciation || '',

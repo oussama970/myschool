@@ -1,9 +1,14 @@
 // lib/services/api/auth_service.dart
+/// Service d'authentification pour la gestion des utilisateurs
+/// Gère le login, register, vérification email, mot de passe oublié,
+/// et la liaison parent-enfant via code parent
+
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'api_client.dart';
 
 class AuthService {
+  /// Authentifie un utilisateur et sauvegarde le token JWT
   static Future<Map<String, dynamic>> login({
     required String email,
     required String password,
@@ -30,6 +35,7 @@ class AuthService {
     }
   }
 
+  /// Enregistre un nouvel utilisateur (admin, enseignant, parent, élève)
   static Future<Map<String, dynamic>> register({
     required String fullName,
     required String email,
@@ -60,6 +66,7 @@ class AuthService {
     }
   }
 
+  /// Vérifie le code email envoyé lors de l'inscription
   static Future<Map<String, dynamic>> verifyEmail({
     required String email,
     required String code,
@@ -83,6 +90,7 @@ class AuthService {
     }
   }
 
+  /// Vérifie le code parent pour lier un parent à son enfant
   static Future<Map<String, dynamic>> verifyParentCode({
     required String parentCode,
   }) async {
@@ -103,6 +111,7 @@ class AuthService {
     }
   }
 
+  /// Récupère l'enfant lié à un parent
   static Future<Map<String, dynamic>> getLinkedChild(String parentEmail) async {
     try {
       final response = await http.get(
@@ -118,6 +127,7 @@ class AuthService {
     }
   }
 
+  /// Envoie un email de réinitialisation de mot de passe
   static Future<Map<String, dynamic>> forgotPassword(String email) async {
     try {
       final response = await http.post(
@@ -135,6 +145,7 @@ class AuthService {
     }
   }
 
+  /// Réinitialise le mot de passe avec le code de vérification
   static Future<Map<String, dynamic>> resetPassword({
     required String email,
     required String code,
@@ -160,6 +171,7 @@ class AuthService {
     }
   }
 
+  /// Récupère les informations d'un enfant par email
   static Future<Map<String, dynamic>> getChildInfo(String email) async {
     try {
       final response = await http.get(

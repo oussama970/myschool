@@ -1,4 +1,7 @@
 // lib/widgets/child_selector.dart
+/// Widget de sélection d'enfant pour les parents ayant plusieurs enfants
+/// Affiche un menu déroulant permettant de basculer entre les enfants
+
 import 'package:flutter/material.dart';
 import '../models/child_model.dart';
 
@@ -16,6 +19,7 @@ class ChildSelector extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Ne rien afficher si un seul enfant (pas besoin de sélecteur)
     if (children.length <= 1) {
       return const SizedBox.shrink();
     }
@@ -46,8 +50,14 @@ class ChildSelector extends StatelessWidget {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(child.fullName, style: const TextStyle(fontWeight: FontWeight.bold)),
-                        Text(child.className, style: TextStyle(fontSize: 11, color: Colors.grey[600])),
+                        Text(
+                          child.fullName,
+                          style: const TextStyle(fontWeight: FontWeight.bold),
+                        ),
+                        Text(
+                          child.className,
+                          style: TextStyle(fontSize: 11, color: Colors.grey[600]),
+                        ),
                       ],
                     ),
                   ),

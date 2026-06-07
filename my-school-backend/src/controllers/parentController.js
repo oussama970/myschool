@@ -1,4 +1,8 @@
 // backend/src/controllers/parentController.js
+/// Contrôleur pour la gestion des parents et de leurs enfants
+/// Gère la liaison parent-enfant, la consultation des notes, absences, événements,
+/// cours, devoirs, enseignants et messagerie parent-enseignant
+
 const Parent = require('../models/Parent');
 const Student = require('../models/Student');
 const Teacher = require('../models/Teacher');
@@ -9,6 +13,7 @@ const Message = require('../models/Message');
 
 // ==================== GESTION DES PARENTS (ADMIN) ====================
 
+/// Récupère tous les parents avec leurs enfants liés
 const getAllParents = async (req, res) => {
   try {
     const parents = await Parent.find().select('-password');
@@ -30,6 +35,7 @@ const getAllParents = async (req, res) => {
   }
 };
 
+/// Supprime un parent et retire son email des enfants liés
 const deleteParent = async (req, res) => {
   try {
     const parent = await Parent.findById(req.params.id);
@@ -37,6 +43,7 @@ const deleteParent = async (req, res) => {
       return res.status(404).json({ success: false, message: 'Parent non trouvé' });
     }
     
+    // Retirer le parent des listes linkedParents des étudiants
     await Student.updateMany(
       { linkedParents: parent.email },
       { $pull: { linkedParents: parent.email } }
@@ -52,7 +59,7 @@ const deleteParent = async (req, res) => {
 
 // ==================== GESTION DES ENFANTS (PARENT) ====================
 
-// Récupérer tous les enfants d'un parent
+/// Récupère tous les enfants d'un parent par son email
 const getParentChildren = async (req, res) => {
   try {
     const { email } = req.params;
@@ -78,7 +85,7 @@ const getParentChildren = async (req, res) => {
   }
 };
 
-// Lier un enfant à un parent (via le code parent)
+/// Lie un enfant à un parent via le code parent
 const linkChildToParent = async (req, res) => {
   try {
     const { parentCode, parentId } = req.body;
@@ -118,7 +125,7 @@ const linkChildToParent = async (req, res) => {
 
 // ==================== COURS ET DEVOIRS ====================
 
-// Récupérer les cours/devoirs/rappels pour un enfant (via sa classe)
+/// Récupère les cours, devoirs et rappels pour un enfant (via sa classe)
 const getChildLessons = async (req, res) => {
   try {
     const { childId } = req.params;
@@ -144,7 +151,7 @@ const getChildLessons = async (req, res) => {
 
 // ==================== NOTES ====================
 
-// Récupérer les notes d'un enfant
+/// Récupère les notes classiques d'un enfant (stockées dans Student.grades)
 const getChildGrades = async (req, res) => {
   try {
     const { childId } = req.params;
@@ -173,7 +180,7 @@ const getChildGrades = async (req, res) => {
   }
 };
 
-// Récupérer les notes d'examen d'un enfant
+/// Récupère les notes d'examen d'un enfant (modèle ExamGrade)
 const getChildExamGrades = async (req, res) => {
   try {
     const { childId } = req.params;
@@ -194,7 +201,7 @@ const getChildExamGrades = async (req, res) => {
 
 // ==================== ABSENCES ====================
 
-// Récupérer les absences d'un enfant
+/// Récupère les absences d'un enfant
 const getChildAbsences = async (req, res) => {
   try {
     const { childId } = req.params;
@@ -225,7 +232,7 @@ const getChildAbsences = async (req, res) => {
 
 // ==================== ÉVÉNEMENTS ====================
 
-// Récupérer les événements pour un enfant (avec la réponse du parent)
+/// Récupère les événements pour un enfant (avec la réponse du parent)
 const getChildEvents = async (req, res) => {
   try {
     const { childId } = req.params;
@@ -267,7 +274,7 @@ const getChildEvents = async (req, res) => {
   }
 };
 
-// Parent répond à un événement (déjà dans eventController, mais ajoutons une version parent)
+/// Parent répond à un événement
 const parentRespondToEvent = async (req, res) => {
   try {
     const { eventId, studentId, studentName, response, comment } = req.body;
@@ -312,7 +319,7 @@ const parentRespondToEvent = async (req, res) => {
 
 // ==================== ENSEIGNANTS ====================
 
-// Récupérer les enseignants de la classe d'un enfant
+/// Récupère les enseignants de la classe d'un enfant
 const getChildTeachers = async (req, res) => {
   try {
     const { childId } = req.params;
@@ -339,7 +346,7 @@ const getChildTeachers = async (req, res) => {
 
 // ==================== MESSAGES ====================
 
-// Récupérer les conversations d'un parent avec les enseignants
+/// Récupère les conversations d'un parent avec les enseignants
 const getParentConversations = async (req, res) => {
   try {
     const { parentId } = req.params;
@@ -386,7 +393,7 @@ const getParentConversations = async (req, res) => {
   }
 };
 
-// Envoyer un message depuis un parent
+/// Envoie un message depuis un parent
 const sendParentMessage = async (req, res) => {
   try {
     const { receiverId, receiverName, receiverRole, message, attachments } = req.body;
@@ -417,7 +424,6 @@ const sendParentMessage = async (req, res) => {
   }
 };
 
-// Exporter toutes les fonctions
 module.exports = {
   // Admin functions
   getAllParents,

@@ -1,3 +1,7 @@
+// lib/screens/teacher/teacher_dashboard_screen.dart
+/// Écran principal du tableau de bord enseignant avec navigation par onglets
+/// Fonctionnalités: menu principal, changement de classe, notifications, accès rapide aux modules
+
 import 'package:flutter/material.dart';
 import 'package:my_school_frontend/services/api_service.dart';
 import 'teacher_lessons_screen.dart';
@@ -59,6 +63,7 @@ class _TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
     _loadNotifications();
   }
 
+  /// Charge les informations de l'enseignant (ID et matières)
   Future<void> _loadTeacherInfo() async {
     try {
       final result = await ApiService.getTeacherInfo(widget.email);
@@ -78,6 +83,7 @@ class _TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
     }
   }
 
+  /// Initialise les pages du tableau de bord
   void _initPages() {
     _pages = [
       TeacherHomePage(
@@ -130,42 +136,49 @@ class _TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
     setState(() {});
   }
 
+  /// Navigation vers la page des cours
   void _navigateToAddCourse() {
     setState(() {
       _selectedIndex = 1;
     });
   }
 
+  /// Navigation vers la page des devoirs
   void _navigateToAddHomework() {
     setState(() {
       _selectedIndex = 4;
     });
   }
 
+  /// Navigation vers la page des messages
   void _navigateToMessages() {
     setState(() {
       _selectedIndex = 2;
     });
   }
 
+  /// Navigation vers la page de la classe
   void _navigateToClass() {
     setState(() {
       _selectedIndex = 3;
     });
   }
 
+  /// Navigation vers la page du profil
   void _navigateToProfile() {
     setState(() {
       _selectedIndex = 6;
     });
   }
 
+  /// Navigation vers la page des événements
   void _navigateToEvents() {
     setState(() {
       _selectedIndex = 5;
     });
   }
 
+  /// Met à jour le compteur de messages non lus
   void _updateUnreadMessagesCount(int count) {
     if (mounted) {
       setState(() {
@@ -174,6 +187,7 @@ class _TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
     }
   }
 
+  /// Met à jour toutes les pages (utilisé après changement de classe)
   void _updatePages() {
     _pages = [
       TeacherHomePage(
@@ -226,6 +240,7 @@ class _TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
     setState(() {});
   }
 
+  /// Charge les notifications (messages non lus, devoirs en attente, événements)
   Future<void> _loadNotifications() async {
     try {
       final result = await ApiService.getTeacherNotifications(widget.email);
@@ -246,6 +261,7 @@ class _TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
     }
   }
 
+  /// Met à jour le nom de la classe courante
   void _updateClassName(String newClassName) {
     setState(() {
       _currentClassName = newClassName;
@@ -253,6 +269,7 @@ class _TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
     _updatePages();
   }
 
+  /// Charge la liste des classes assignées à l'enseignant
   Future<void> _loadTeacherClasses() async {
     setState(() => _isLoadingClasses = true);
     
@@ -299,6 +316,7 @@ class _TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
     }
   }
 
+  /// Affiche le sélecteur de classe (si plusieurs classes assignées)
   void _showClassSelector() {
     if (_availableClasses.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -396,13 +414,14 @@ class _TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
     );
   }
 
+  /// Construit l'interface principale du tableau de bord
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFFF5F7FA),
       body: Column(
         children: [
-          // En-tête
+          // En-tête avec titre et sélecteur de classe
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
             decoration: const BoxDecoration(
@@ -490,7 +509,7 @@ class _TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
             ),
           ),
 
-          // Contenu principal
+          // Contenu principal (page active)
           Expanded(
             child: _pages.isEmpty
                 ? const Center(child: CircularProgressIndicator())
@@ -611,7 +630,12 @@ class _TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
   }
 }
 
-// Page d'accueil
+// ============================================================
+// Page d'accueil du tableau de bord enseignant
+// ============================================================
+
+/// Page d'accueil du tableau de bord enseignant
+/// Affiche les informations de bienvenue, les statistiques et le menu rapide
 class TeacherHomePage extends StatelessWidget {
   final String teacherName;
   final String className;
@@ -636,6 +660,131 @@ class TeacherHomePage extends StatelessWidget {
     required this.onGoToEvents,
   });
 
+  /// Construit une carte de statistique (classe, matière)
+  Widget _buildStatCard({
+    required IconData icon,
+    required String label,
+    required String value,
+    required Color color,
+  }) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.15),
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Row(
+        children: [
+          Icon(icon, color: color, size: 24),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  label,
+                  style: TextStyle(
+                    fontSize: 11,
+                    color: color.withOpacity(0.8),
+                  ),
+                ),
+                Text(
+                  value,
+                  style: const TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.white,
+                  ),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Construit un élément du menu rapide
+  Widget _buildMenuItem({
+    required IconData icon,
+    required String label,
+    required Color color,
+    required VoidCallback onTap,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(16),
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 16),
+        decoration: BoxDecoration(
+          color: color.withOpacity(0.08),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: color.withOpacity(0.2)),
+        ),
+        child: Column(
+          children: [
+            Icon(icon, color: color, size: 28),
+            const SizedBox(height: 8),
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                color: color,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// Construit un élément de la section "À propos"
+  Widget _buildAboutItem({
+    required IconData icon,
+    required String title,
+    required String description,
+  }) {
+    return Row(
+      children: [
+        Container(
+          width: 44,
+          height: 44,
+          decoration: BoxDecoration(
+            color: const Color(0xFF0288D1).withOpacity(0.1),
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Icon(icon, color: const Color(0xFF0288D1), size: 24),
+        ),
+        const SizedBox(width: 16),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                title,
+                style: const TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                  color: Color(0xFF01579B),
+                ),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                description,
+                style: TextStyle(
+                  fontSize: 12,
+                  color: Colors.grey[600],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return RefreshIndicator(
@@ -646,7 +795,7 @@ class TeacherHomePage extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Carte de bienvenue
+            // Carte de bienvenue avec informations enseignant
             Container(
               width: double.infinity,
               padding: const EdgeInsets.all(24),
@@ -729,7 +878,7 @@ class TeacherHomePage extends StatelessWidget {
 
             const SizedBox(height: 20),
 
-            // Menu rapide
+            // Menu rapide (actions principales)
             Container(
               width: double.infinity,
               padding: const EdgeInsets.all(20),
@@ -821,7 +970,7 @@ class TeacherHomePage extends StatelessWidget {
 
             const SizedBox(height: 20),
 
-            // Informations supplémentaires
+            // Section "À propos" - informations sur la plateforme
             Container(
               width: double.infinity,
               padding: const EdgeInsets.all(20),
@@ -871,128 +1020,6 @@ class TeacherHomePage extends StatelessWidget {
           ],
         ),
       ),
-    );
-  }
-
-  Widget _buildStatCard({
-    required IconData icon,
-    required String label,
-    required String value,
-    required Color color,
-  }) {
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.15),
-        borderRadius: BorderRadius.circular(16),
-      ),
-      child: Row(
-        children: [
-          Icon(icon, color: color, size: 24),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  label,
-                  style: TextStyle(
-                    fontSize: 11,
-                    color: color.withOpacity(0.8),
-                  ),
-                ),
-                Text(
-                  value,
-                  style: const TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.white,
-                  ),
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildMenuItem({
-    required IconData icon,
-    required String label,
-    required Color color,
-    required VoidCallback onTap,
-  }) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(16),
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 16),
-        decoration: BoxDecoration(
-          color: color.withOpacity(0.08),
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: color.withOpacity(0.2)),
-        ),
-        child: Column(
-          children: [
-            Icon(icon, color: color, size: 28),
-            const SizedBox(height: 8),
-            Text(
-              label,
-              style: TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.w600,
-                color: color,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildAboutItem({
-    required IconData icon,
-    required String title,
-    required String description,
-  }) {
-    return Row(
-      children: [
-        Container(
-          width: 44,
-          height: 44,
-          decoration: BoxDecoration(
-            color: const Color(0xFF0288D1).withOpacity(0.1),
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: Icon(icon, color: const Color(0xFF0288D1), size: 24),
-        ),
-        const SizedBox(width: 16),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                title,
-                style: const TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w600,
-                  color: Color(0xFF01579B),
-                ),
-              ),
-              const SizedBox(height: 2),
-              Text(
-                description,
-                style: TextStyle(
-                  fontSize: 12,
-                  color: Colors.grey[600],
-                ),
-              ),
-            ],
-          ),
-        ),
-      ],
     );
   }
 }

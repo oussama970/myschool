@@ -1,4 +1,7 @@
 // lib/services/api/student_service.dart
+/// Service étudiant pour la gestion des informations et fonctionnalités élèves
+/// Gère les cours, emploi du temps, notes, absences, événements, messages et profil
+
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'api_client.dart';
@@ -6,6 +9,7 @@ import 'api_client.dart';
 class StudentService {
   // ==================== INFORMATIONS ÉLÈVE ====================
   
+  /// Récupère les informations d'un élève par son email
   static Future<Map<String, dynamic>> getStudentInfo(String email) async {
     try {
       final headers = await ApiClient.getHeaders();
@@ -33,6 +37,7 @@ class StudentService {
 
   // ==================== COURS ====================
   
+  /// Récupère les cours, devoirs et rappels d'un élève par classe
   static Future<Map<String, dynamic>> getStudentLessons(String className) async {
     try {
       final headers = await ApiClient.getHeaders();
@@ -52,6 +57,7 @@ class StudentService {
 
   // ==================== EMPLOI DU TEMPS ====================
   
+  /// Récupère l'emploi du temps d'un élève par classe
   static Future<Map<String, dynamic>> getStudentSchedule(String className) async {
     try {
       final headers = await ApiClient.getHeaders();
@@ -71,6 +77,7 @@ class StudentService {
 
   // ==================== NOTES ====================
   
+  /// Récupère les notes d'examen d'un élève
   static Future<Map<String, dynamic>> getStudentExamGrades(String studentId) async {
     try {
       final headers = await ApiClient.getHeaders();
@@ -90,6 +97,7 @@ class StudentService {
 
   // ==================== ABSENCES ====================
   
+  /// Récupère les absences d'un élève
   static Future<Map<String, dynamic>> getStudentAbsences(String studentId) async {
     try {
       final headers = await ApiClient.getHeaders();
@@ -109,6 +117,7 @@ class StudentService {
 
   // ==================== ÉVÉNEMENTS ====================
   
+  /// Récupère les événements pour un élève
   static Future<Map<String, dynamic>> getStudentEvents(String studentId) async {
     try {
       final headers = await ApiClient.getHeaders();
@@ -126,6 +135,7 @@ class StudentService {
     }
   }
 
+  /// L'élève répond à un événement
   static Future<Map<String, dynamic>> studentRespondToEvent({
     required String eventId,
     required String studentId,
@@ -158,6 +168,7 @@ class StudentService {
 
   // ==================== MESSAGES ====================
   
+  /// Récupère les conversations d'un élève
   static Future<Map<String, dynamic>> getStudentConversations(String studentId) async {
     try {
       final headers = await ApiClient.getHeaders();
@@ -175,6 +186,7 @@ class StudentService {
     }
   }
 
+  /// Envoie un message depuis un élève
   static Future<Map<String, dynamic>> sendStudentMessage({
     required String receiverId,
     required String receiverName,
@@ -207,6 +219,7 @@ class StudentService {
 
   // ==================== PROFIL ====================
   
+  /// Met à jour le profil de l'élève
   static Future<Map<String, dynamic>> updateStudentProfile({
     required String email,
     required String fullName,
@@ -233,6 +246,7 @@ class StudentService {
     }
   }
 
+  /// Change le mot de passe de l'élève
   static Future<Map<String, dynamic>> changeStudentPassword({
     required String email,
     required String currentPassword,

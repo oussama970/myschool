@@ -1,4 +1,7 @@
 // lib/screens/parent/parent_messages_screen.dart
+/// Écran parent permettant de consulter et d'envoyer des messages aux enseignants
+/// Affiche la liste des enseignants de la classe de l'enfant avec les messages non lus
+
 import 'package:flutter/material.dart';
 import 'package:my_school_frontend/services/api_service.dart';
 import 'package:my_school_frontend/models/child_model.dart';
@@ -34,6 +37,7 @@ class _ParentMessagesScreenState extends State<ParentMessagesScreen> {
     _loadData();
   }
 
+  /// Met à jour l'enfant sélectionné et recharge les données si nécessaire
   @override
   void didUpdateWidget(ParentMessagesScreen oldWidget) {
     super.didUpdateWidget(oldWidget);
@@ -45,6 +49,7 @@ class _ParentMessagesScreenState extends State<ParentMessagesScreen> {
     }
   }
 
+  /// Charge tous les enseignants et les conversations existantes
   Future<void> _loadData() async {
     setState(() => _isLoading = true);
     await _loadTeachers();
@@ -52,6 +57,7 @@ class _ParentMessagesScreenState extends State<ParentMessagesScreen> {
     setState(() => _isLoading = false);
   }
 
+  /// Récupère la liste des enseignants depuis l'API et filtre par classe de l'enfant
   Future<void> _loadTeachers() async {
     try {
       final result = await ApiService.getTeachers();
@@ -77,6 +83,7 @@ class _ParentMessagesScreenState extends State<ParentMessagesScreen> {
     }
   }
 
+  /// Récupère les conversations existantes et le nombre de messages non lus
   Future<void> _loadConversations() async {
     try {
       final result = await ApiService.getConversations();
@@ -95,11 +102,13 @@ class _ParentMessagesScreenState extends State<ParentMessagesScreen> {
     }
   }
 
+  /// Récupère la première lettre du nom pour l'avatar
   String _getAvatar(String name) {
     if (name.isEmpty) return '?';
     return name.substring(0, 1).toUpperCase();
   }
 
+  /// Construit l'interface principale avec la liste des enseignants
   @override
   Widget build(BuildContext context) {
     if (_selectedChild == null) {

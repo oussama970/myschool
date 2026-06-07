@@ -1,4 +1,8 @@
 // lib/screens/teacher/teacher_events_screen.dart
+/// Écran enseignant pour la gestion des événements (sorties, réunions, etc.)
+/// Permet de créer des événements, consulter les réponses des parents,
+/// et visualiser l'historique des événements passés
+
 import 'package:flutter/material.dart';
 import 'package:my_school_frontend/services/api_service.dart';
 import 'package:my_school_frontend/models/event_model.dart';
@@ -48,6 +52,7 @@ class _TeacherEventsScreenState extends State<TeacherEventsScreen>
     super.dispose();
   }
 
+  /// Charge tous les événements de l'enseignant pour cette classe
   Future<void> _loadEvents() async {
     setState(() => _isLoading = true);
     
@@ -80,7 +85,7 @@ class _TeacherEventsScreenState extends State<TeacherEventsScreen>
     }
   }
 
-  // Événements en attente (date future)
+  /// Filtre les événements en attente (date future)
   List<EventModel> _getPendingEvents() {
     final now = DateTime.now();
     return _events.where((e) => 
@@ -88,7 +93,7 @@ class _TeacherEventsScreenState extends State<TeacherEventsScreen>
     ).toList();
   }
 
-  // Événements historiques (date passée)
+  /// Filtre les événements historiques (date passée)
   List<EventModel> _getHistoryEvents() {
     final now = DateTime.now();
     return _events.where((e) => 
@@ -96,6 +101,7 @@ class _TeacherEventsScreenState extends State<TeacherEventsScreen>
     ).toList();
   }
 
+  /// Construit l'interface principale
   @override
   Widget build(BuildContext context) {
     final pendingEvents = _getPendingEvents();
@@ -140,7 +146,7 @@ class _TeacherEventsScreenState extends State<TeacherEventsScreen>
               ),
             ),
             
-            // Tab selector (À venir / Historique)
+            // Sélecteur d'onglets (À venir / Historique)
             Container(
               margin: const EdgeInsets.symmetric(horizontal: 16),
               padding: const EdgeInsets.all(4),
@@ -159,7 +165,7 @@ class _TeacherEventsScreenState extends State<TeacherEventsScreen>
             
             const SizedBox(height: 16),
             
-            // Liste des événements
+            // Liste des événements selon l'onglet sélectionné
             Expanded(
               child: _isLoading
                   ? const Center(child: CircularProgressIndicator())
@@ -177,6 +183,7 @@ class _TeacherEventsScreenState extends State<TeacherEventsScreen>
     );
   }
 
+  /// Construit un onglet personnalisé avec compteur
   Widget _buildTab(String text, int count, int index) {
     final isSelected = _selectedTabIndex == index;
     return Expanded(
@@ -208,6 +215,7 @@ class _TeacherEventsScreenState extends State<TeacherEventsScreen>
     );
   }
 
+  /// Construit la liste des événements
   Widget _buildEventsList(List<EventModel> events, bool isPending) {
     if (events.isEmpty) {
       return Center(
@@ -270,6 +278,7 @@ class _TeacherEventsScreenState extends State<TeacherEventsScreen>
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  // En-tête avec icône, titre et statut
                   Row(
                     children: [
                       Container(
@@ -332,6 +341,7 @@ class _TeacherEventsScreenState extends State<TeacherEventsScreen>
                     ],
                   ),
                   const SizedBox(height: 12),
+                  // Description
                   Text(
                     event.description,
                     maxLines: 2,
@@ -339,6 +349,7 @@ class _TeacherEventsScreenState extends State<TeacherEventsScreen>
                     style: TextStyle(fontSize: 13, color: Colors.grey[600]),
                   ),
                   const SizedBox(height: 8),
+                  // Statistiques des réponses
                   Row(
                     children: [
                       Icon(Icons.people, size: 14, color: Colors.grey[500]),

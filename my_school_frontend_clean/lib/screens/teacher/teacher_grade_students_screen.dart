@@ -1,4 +1,7 @@
 // lib/screens/teacher/teacher_grade_students_screen.dart
+/// Écran enseignant pour la saisie des notes des élèves pour un examen/évaluation
+/// Permet de noter chaque élève, ajouter une appréciation et une photo de la copie
+
 import 'package:flutter/material.dart';
 import 'package:my_school_frontend/services/api_service.dart';
 import 'package:image_picker/image_picker.dart';
@@ -53,6 +56,7 @@ class _TeacherGradeStudentsScreenState extends State<TeacherGradeStudentsScreen>
     super.dispose();
   }
 
+  /// Charge la liste des élèves de la classe
   Future<void> _loadStudents() async {
     setState(() => _isLoading = true);
     
@@ -86,6 +90,7 @@ class _TeacherGradeStudentsScreenState extends State<TeacherGradeStudentsScreen>
     }
   }
 
+  /// Charge les notes déjà existantes pour cet examen
   Future<void> _loadExistingGrades() async {
     try {
       final result = await ApiService.getExamGrades(widget.examEvent['id']);
@@ -106,6 +111,7 @@ class _TeacherGradeStudentsScreenState extends State<TeacherGradeStudentsScreen>
     }
   }
 
+  /// Prend une photo avec l'appareil photo et l'associe à l'élève
   Future<void> _takePhoto(String studentId) async {
     try {
       final XFile? photo = await _picker.pickImage(
@@ -156,6 +162,7 @@ class _TeacherGradeStudentsScreenState extends State<TeacherGradeStudentsScreen>
     }
   }
 
+  /// Marque qu'il y a des modifications non enregistrées
   void _onGradeChanged(String studentId) {
     if (!_hasUnsavedChanges) {
       setState(() {
@@ -164,6 +171,7 @@ class _TeacherGradeStudentsScreenState extends State<TeacherGradeStudentsScreen>
     }
   }
 
+  /// Enregistre toutes les notes des élèves
   Future<void> _saveAllGrades() async {
     setState(() => _isSavingAll = true);
     
@@ -219,6 +227,7 @@ class _TeacherGradeStudentsScreenState extends State<TeacherGradeStudentsScreen>
     await _loadExistingGrades();
   }
 
+  /// Construit l'interface principale du tableau de notes
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -303,7 +312,7 @@ class _TeacherGradeStudentsScreenState extends State<TeacherGradeStudentsScreen>
                 
                 const SizedBox(height: 12),
                 
-                // Liste des élèves
+                // Liste des élèves avec champs de saisie
                 Expanded(
                   child: RefreshIndicator(
                     onRefresh: _loadStudents,
@@ -326,7 +335,7 @@ class _TeacherGradeStudentsScreenState extends State<TeacherGradeStudentsScreen>
                             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
                             child: Row(
                               children: [
-                                // Numéro
+                                // Numéro d'ordre
                                 Container(
                                   width: 40,
                                   height: 40,
@@ -360,7 +369,7 @@ class _TeacherGradeStudentsScreenState extends State<TeacherGradeStudentsScreen>
                                   ),
                                 ),
                                 
-                                // Champ Note
+                                // Champ de saisie de la note
                                 SizedBox(
                                   width: 65,
                                   child: TextField(
@@ -388,7 +397,7 @@ class _TeacherGradeStudentsScreenState extends State<TeacherGradeStudentsScreen>
                                 
                                 const SizedBox(width: 10),
                                 
-                                // Champ Appréciation
+                                // Champ d'appréciation
                                 Expanded(
                                   flex: 3,
                                   child: TextField(
@@ -411,7 +420,7 @@ class _TeacherGradeStudentsScreenState extends State<TeacherGradeStudentsScreen>
                                 
                                 const SizedBox(width: 8),
                                 
-                                // Icône photo
+                                // Icône photo (caméra/photo)
                                 SizedBox(
                                   width: 45,
                                   child: Center(

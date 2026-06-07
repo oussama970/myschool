@@ -9,6 +9,13 @@ const ExamGrade = require('../models/ExamGrade');
 const Message = require('../models/Message');
 const bcrypt = require('bcryptjs');
 
+// ==================== IMPORT HOMEWORK CONTROLLER ====================
+const {
+  submitHomework,
+  getStudentSubmissions,
+  getStudentSubmissionForLesson
+} = require('../controllers/homeworkController');
+
 // Toutes les routes nécessitent une authentification
 router.use(protect);
 
@@ -384,6 +391,115 @@ router.post('/change-password', async (req, res) => {
     res.json({ success: true, message: 'Mot de passe modifié avec succès' });
   } catch (error) {
     console.error('❌ Erreur changeStudentPassword:', error);
+    res.status(500).json({ success: false, message: 'Erreur serveur' });
+  }
+});
+
+// ==================== NOUVELLES ROUTES: SOUMISSIONS DEVOIRS ====================
+
+// Soumettre un devoir (texte + fichiers)
+router.post('/submit-homework', async (req, res) => {
+  try {
+    const { lessonId, content, attachments } = req.body;
+    const studentId = req.user._id;
+    
+    console.log('========== SUBMIT HOMEWORK ==========');
+    console.log('Lesson ID:', lessonId);
+    console.log('Student ID:', studentId);
+    console.log('Content length:', content?.length || 0);
+    console.log('Attachments:', attachments?.length || 0);
+    
+    // Vérifier que le devoir existe
+    const lesson = await Lesson.findById(lessonId);
+    if (!lesson) {
+      return res.status(404).json({ success: false, message: 'Devoir non trouvé' });
+    }
+    
+    // Vérifier que c'est bien un devoir
+    if (lesson.type !== 'Devoir') {
+      return res.status(400).json({ success: false, message: 'Seuls les devoirs peuvent être soumis' });
+    }
+    
+    // Récupérer les infos de l'élève
+    const student = await Student.findById(studentId);
+    if (!student) {
+      return res.status(404).json({ success: false, message: 'Élève non trouvé' });
+    }
+    
+    // Importer le modèle HomeworkSubmission
+    const HomeworkSubmission = require('../models/HomeworkSubmission');
+    
+    // Chercher une soumission existante
+    let submission = await HomeworkSubmission.findOne({ lessonId, studentId });
+    
+    if (submission) {
+      // Mettre à jour la soumission existante
+      submission.content = content || '';
+      submission.attachments = attachments || [];
+      submission.submittedAt = new Date();
+      submission.status = 'submitted';
+      await submission.save();
+      console.log(`✅ Devoir mis à jour pour ${student.fullName}`);
+    } else {
+      // Créer une nouvelle soumission
+      submission = await HomeworkSubmission.create({
+        lessonId,
+        studentId,
+        studentName: student.fullName,
+        className: student.className || lesson.className,
+        content: content || '',
+        attachments: attachments || [],
+        status: 'submitted'
+      });
+      console.log(`✅ Nouveau devoir soumis par ${student.fullName}`);
+    }
+    
+    res.status(201).json({ success: true, submission });
+  } catch (error) {
+    console.error('❌ Erreur submitHomework:', error);
+    res.status(500).json({ success: false, message: 'Erreur serveur: ' + error.message });
+  }
+});
+
+// Récupérer toutes les soumissions de l'élève connecté
+router.get('/my-submissions', async (req, res) => {
+  try {
+    const studentId = req.user._id;
+    
+    console.log('========== GET MY SUBMISSIONS ==========');
+    console.log('Student ID:', studentId);
+    
+    const HomeworkSubmission = require('../models/HomeworkSubmission');
+    
+    const submissions = await HomeworkSubmission.find({ studentId })
+      .populate('lessonId', 'title subject deadline')
+      .sort({ submittedAt: -1 });
+    
+    console.log(`✅ ${submissions.length} soumissions trouvées`);
+    res.json({ success: true, submissions });
+  } catch (error) {
+    console.error('❌ Erreur getMySubmissions:', error);
+    res.status(500).json({ success: false, message: 'Erreur serveur' });
+  }
+});
+
+// Récupérer la soumission d'un élève pour un devoir spécifique
+router.get('/homework-submission/:lessonId', async (req, res) => {
+  try {
+    const { lessonId } = req.params;
+    const studentId = req.user._id;
+    
+    console.log('========== GET STUDENT SUBMISSION FOR LESSON ==========');
+    console.log('Lesson ID:', lessonId);
+    console.log('Student ID:', studentId);
+    
+    const HomeworkSubmission = require('../models/HomeworkSubmission');
+    
+    const submission = await HomeworkSubmission.findOne({ lessonId, studentId });
+    
+    res.json({ success: true, submission: submission || null });
+  } catch (error) {
+    console.error('❌ Erreur getStudentSubmissionForLesson:', error);
     res.status(500).json({ success: false, message: 'Erreur serveur' });
   }
 });

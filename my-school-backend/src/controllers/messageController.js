@@ -1,9 +1,13 @@
+// backend/src/controllers/messageController.js
+/// Contrôleur pour la gestion des messages et conversations
+/// Permet d'envoyer, lire, marquer comme lu et supprimer des messages entre utilisateurs
+
 const Message = require('../models/Message');
 const Teacher = require('../models/Teacher');
 const Student = require('../models/Student');
 const Parent = require('../models/Parent');
 
-// Récupérer toutes les conversations d'un utilisateur
+/// Récupère toutes les conversations d'un utilisateur (regroupées par contact)
 const getConversations = async (req, res) => {
   try {
     const userId = req.user._id;
@@ -23,7 +27,7 @@ const getConversations = async (req, res) => {
     
     console.log(`📨 ${messages.length} messages trouvés`);
     
-    // Regrouper par contact
+    // Regrouper les messages par contact
     const conversationsMap = new Map();
     
     for (const msg of messages) {
@@ -57,7 +61,7 @@ const getConversations = async (req, res) => {
   }
 };
 
-// Récupérer les messages d'une conversation
+/// Récupère tous les messages d'une conversation avec un contact spécifique
 const getMessages = async (req, res) => {
   try {
     const { contactId } = req.params;
@@ -76,7 +80,7 @@ const getMessages = async (req, res) => {
     
     console.log(`📨 ${messages.length} messages trouvés`);
     
-    // Marquer les messages comme lus
+    // Marquer les messages non lus comme lus
     const unreadMessages = messages.filter(
       msg => msg.senderId.toString() === contactId && !msg.isRead
     );
@@ -96,7 +100,7 @@ const getMessages = async (req, res) => {
   }
 };
 
-// Envoyer un message
+/// Envoie un message à un destinataire
 const sendMessage = async (req, res) => {
   try {
     const { receiverId, receiverName, receiverRole, message, attachments } = req.body;
@@ -130,7 +134,7 @@ const sendMessage = async (req, res) => {
   }
 };
 
-// Marquer un message comme lu
+/// Marque un message spécifique comme lu
 const markAsRead = async (req, res) => {
   try {
     const { messageId } = req.params;
@@ -152,7 +156,7 @@ const markAsRead = async (req, res) => {
   }
 };
 
-// Récupérer les contacts (parents et élèves de la classe)
+/// Récupère les contacts disponibles (enseignants, parents, élèves)
 const getContacts = async (req, res) => {
   try {
     const userRole = req.user.role;
@@ -165,9 +169,11 @@ const getContacts = async (req, res) => {
       const assignedClasses = req.user.assignedClasses || [];
       console.log('Classes assignées:', assignedClasses);
       
+      // Récupérer les élèves des classes assignées
       const students = await Student.find({ className: { $in: assignedClasses } })
         .select('fullName email className');
       
+      // Récupérer les parents (tous)
       const parents = await Parent.find()
         .select('fullName email linkedChildren');
       
@@ -198,7 +204,7 @@ const getContacts = async (req, res) => {
   }
 };
 
-// Supprimer un message
+/// Supprime un message (seulement si l'utilisateur en est l'expéditeur)
 const deleteMessage = async (req, res) => {
   try {
     const { messageId } = req.params;
@@ -208,6 +214,7 @@ const deleteMessage = async (req, res) => {
       return res.status(404).json({ success: false, message: 'Message non trouvé' });
     }
     
+    // Vérification que l'utilisateur est l'expéditeur
     if (message.senderId.toString() !== req.user._id.toString()) {
       return res.status(403).json({ success: false, message: 'Non autorisé' });
     }

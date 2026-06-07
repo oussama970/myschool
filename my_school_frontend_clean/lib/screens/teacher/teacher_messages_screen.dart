@@ -1,3 +1,7 @@
+// lib/screens/teacher/teacher_messages_screen.dart
+/// Écran enseignant pour la gestion des messages avec parents, élèves et autres enseignants
+/// Affiche les conversations avec compteur de messages non lus et mise à jour en temps réel
+
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:my_school_frontend/services/api_service.dart';
@@ -52,6 +56,7 @@ class _TeacherMessagesScreenState extends State<TeacherMessagesScreen> {
     super.dispose();
   }
 
+  /// Démarre le polling pour mettre à jour les conversations toutes les 5 secondes
   void _startPolling() {
     _pollingTimer = Timer.periodic(const Duration(seconds: 5), (timer) {
       if (mounted) {
@@ -60,6 +65,7 @@ class _TeacherMessagesScreenState extends State<TeacherMessagesScreen> {
     });
   }
 
+  /// Rafraîchit les conversations
   Future<void> _refreshConversations() async {
     await _loadConversations();
     if (mounted) {
@@ -67,6 +73,7 @@ class _TeacherMessagesScreenState extends State<TeacherMessagesScreen> {
     }
   }
 
+  /// Charge les conversations depuis l'API
   Future<void> _loadConversations() async {
     if (!mounted) return;
     try {
@@ -126,6 +133,7 @@ class _TeacherMessagesScreenState extends State<TeacherMessagesScreen> {
     }
   }
 
+  /// Récupère la première lettre du nom pour l'avatar
   String _getAvatar(dynamic fullName) {
     if (fullName == null) return '?';
     final String name = fullName.toString();
@@ -133,6 +141,7 @@ class _TeacherMessagesScreenState extends State<TeacherMessagesScreen> {
     return name.substring(0, 1).toUpperCase();
   }
 
+  /// Charge les parents et élèves de la classe
   Future<void> _loadData() async {
     if (!mounted) return;
     setState(() => _isLoading = true);
@@ -213,6 +222,7 @@ class _TeacherMessagesScreenState extends State<TeacherMessagesScreen> {
     }
   }
 
+  /// Charge la liste des enseignants
   Future<void> _loadTeachers() async {
     if (!mounted) return;
     try {
@@ -243,6 +253,7 @@ class _TeacherMessagesScreenState extends State<TeacherMessagesScreen> {
     }
   }
 
+  /// Charge des données mockées en cas d'erreur (parents et élèves)
   void _loadMockData() {
     if (!mounted) return;
     setState(() {
@@ -258,6 +269,7 @@ class _TeacherMessagesScreenState extends State<TeacherMessagesScreen> {
     });
   }
 
+  /// Charge des données mockées pour les enseignants
   void _loadMockTeachers() {
     if (!mounted) return;
     setState(() {
@@ -268,6 +280,7 @@ class _TeacherMessagesScreenState extends State<TeacherMessagesScreen> {
     });
   }
 
+  /// Récupère le nombre de messages non lus pour un contact
   int _getUnreadCount(String contactId) {
     if (contactId.isEmpty) return 0;
     try {
@@ -282,6 +295,7 @@ class _TeacherMessagesScreenState extends State<TeacherMessagesScreen> {
     }
   }
 
+  /// Récupère le dernier message d'une conversation
   String _getLastMessage(String contactId) {
     if (contactId.isEmpty) return '';
     try {
@@ -297,6 +311,7 @@ class _TeacherMessagesScreenState extends State<TeacherMessagesScreen> {
     }
   }
 
+  /// Récupère l'heure du dernier message formatée
   String _getLastMessageTime(String contactId) {
     if (contactId.isEmpty) return '';
     try {
@@ -323,6 +338,7 @@ class _TeacherMessagesScreenState extends State<TeacherMessagesScreen> {
     }
   }
 
+  /// Formate l'heure relative (ex: 2j, 5h, 10min, maintenant)
   String _formatTime(DateTime time) {
     final now = DateTime.now();
     final diff = now.difference(time);
@@ -338,6 +354,7 @@ class _TeacherMessagesScreenState extends State<TeacherMessagesScreen> {
     }
   }
 
+  /// Construit un onglet personnalisé avec badge de notification
   Widget _buildTabWithBadge(int index, String label, int badgeCount) {
     final isSelected = _selectedTab == index;
     return Expanded(
@@ -395,12 +412,14 @@ class _TeacherMessagesScreenState extends State<TeacherMessagesScreen> {
     );
   }
 
+  /// Construit l'interface principale
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFFF5F7FA),
       body: Column(
         children: [
+          // En-tête
           const Padding(
             padding: EdgeInsets.all(20),
             child: Text(
@@ -413,6 +432,7 @@ class _TeacherMessagesScreenState extends State<TeacherMessagesScreen> {
             ),
           ),
 
+          // Barre d'onglets avec badges
           Container(
             margin: const EdgeInsets.symmetric(horizontal: 20),
             padding: const EdgeInsets.all(4),
@@ -438,6 +458,7 @@ class _TeacherMessagesScreenState extends State<TeacherMessagesScreen> {
 
           const SizedBox(height: 20),
 
+          // Liste selon l'onglet sélectionné
           Expanded(
             child: _isLoading
                 ? const Center(child: CircularProgressIndicator())
@@ -452,6 +473,7 @@ class _TeacherMessagesScreenState extends State<TeacherMessagesScreen> {
     );
   }
 
+  /// Construit la liste des parents
   Widget _buildParentList() {
     if (_parents.isEmpty) {
       return Center(
@@ -623,6 +645,7 @@ class _TeacherMessagesScreenState extends State<TeacherMessagesScreen> {
     );
   }
 
+  /// Construit la liste des élèves
   Widget _buildStudentList() {
     if (_students.isEmpty) {
       return Center(
@@ -772,6 +795,7 @@ class _TeacherMessagesScreenState extends State<TeacherMessagesScreen> {
     );
   }
 
+  /// Construit la liste des enseignants
   Widget _buildTeacherList() {
     if (_teachers.isEmpty) {
       return Center(
@@ -796,6 +820,7 @@ class _TeacherMessagesScreenState extends State<TeacherMessagesScreen> {
         itemCount: _teachers.length,
         itemBuilder: (context, index) {
           final teacher = _teachers[index];
+          // Ne pas afficher l'enseignant lui-même
           if (teacher['email'] == widget.teacherEmail) {
             return const SizedBox.shrink();
           }

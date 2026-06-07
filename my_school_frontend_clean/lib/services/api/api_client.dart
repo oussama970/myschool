@@ -1,4 +1,8 @@
 // lib/services/api/api_client.dart
+/// Client HTTP centralisé pour les appels API
+/// Gère la configuration réseau (IP du serveur), les tokens JWT,
+/// l'upload/download de fichiers et la déconnexion
+
 import 'dart:convert';
 import 'dart:io';
 import 'package:http/http.dart' as http;
@@ -6,25 +10,31 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:path_provider/path_provider.dart';
 
 class ApiClient {
-  static const String baseUrl = 'http://10.0.2.2:5000/api';
+  // ✅ IP de votre ordinateur (fonctionne sur émulateur ET téléphone)
+  static const String ip = '10.224.96.72';  // ← REMPLACEZ PAR VOTRE IP
+  static const String baseUrl = 'http://$ip:5000/api';
   
+  /// Sauvegarde le token JWT dans SharedPreferences
   static Future<void> saveToken(String token) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString('token', token);
     print('✅ Token sauvegardé');
   }
 
+  /// Récupère le token JWT depuis SharedPreferences
   static Future<String?> getToken() async {
     final prefs = await SharedPreferences.getInstance();
     return prefs.getString('token');
   }
 
+  /// Supprime le token JWT (déconnexion)
   static Future<void> removeToken() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove('token');
     print('🔓 Token supprimé');
   }
 
+  /// Construit les headers pour les requêtes HTTP (Authorization + Content-Type)
   static Future<Map<String, String>> getHeaders() async {
     final token = await getToken();
     return {
@@ -33,6 +43,7 @@ class ApiClient {
     };
   }
 
+  /// Upload d'un fichier vers le serveur (multipart/form-data)
   static Future<Map<String, dynamic>> uploadFile(File file) async {
     try {
       final token = await getToken();
@@ -56,6 +67,7 @@ class ApiClient {
     }
   }
 
+  /// Télécharge un fichier depuis le serveur et le sauvegarde localement
   static Future<Map<String, dynamic>> downloadFile(String filename, String originalName) async {
     try {
       final token = await getToken();
@@ -77,6 +89,7 @@ class ApiClient {
     }
   }
 
+  /// Déconnexion: supprime le token
   static Future<void> logout() async {
     await removeToken();
   }

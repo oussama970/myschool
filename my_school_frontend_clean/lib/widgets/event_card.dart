@@ -1,4 +1,7 @@
 // lib/widgets/event_card.dart
+/// Widget de carte d'événement pour afficher les informations d'un événement
+/// Utilisé dans les listes d'événements avec statut, description et statistiques
+
 import 'package:flutter/material.dart';
 import 'package:my_school_frontend/models/event_model.dart';
 
@@ -31,9 +34,9 @@ class EventCard extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              // En-tête avec icône, titre, date et statut
               Row(
                 children: [
-                  // Icône
                   Container(
                     width: 50,
                     height: 50,
@@ -45,7 +48,6 @@ class EventCard extends StatelessWidget {
                   ),
                   const SizedBox(width: 16),
                   
-                  // Titre et date
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -74,7 +76,7 @@ class EventCard extends StatelessWidget {
                     ),
                   ),
                   
-                  // Badge statut
+                  // Badge de statut
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                     decoration: BoxDecoration(
@@ -87,7 +89,7 @@ class EventCard extends StatelessWidget {
                     ),
                   ),
                   
-                  // Bouton supprimer
+                  // Bouton de suppression (optionnel)
                   if (onDelete != null)
                     IconButton(
                       icon: const Icon(Icons.delete_outline, color: Colors.red, size: 20),
@@ -108,7 +110,7 @@ class EventCard extends StatelessWidget {
               
               const SizedBox(height: 8),
               
-              // Statistiques
+              // Statistiques des réponses
               Row(
                 children: [
                   _buildStatItem(
@@ -139,6 +141,7 @@ class EventCard extends StatelessWidget {
     );
   }
 
+  /// Construit un élément de statistique avec icône, compte et label
   Widget _buildStatItem({
     required IconData icon,
     required int count,
@@ -157,6 +160,7 @@ class EventCard extends StatelessWidget {
     );
   }
 
+  /// Retourne la couleur associée au statut de l'événement
   Color _getStatusColor(String status) {
     switch (status) {
       case 'pending': return Colors.orange;
@@ -166,6 +170,7 @@ class EventCard extends StatelessWidget {
     }
   }
 
+  /// Retourne le texte associé au statut de l'événement
   String _getStatusText(String status) {
     switch (status) {
       case 'pending': return 'En attente';
@@ -175,6 +180,7 @@ class EventCard extends StatelessWidget {
     }
   }
 
+  /// Retourne l'icône associée au statut de l'événement
   IconData _getStatusIcon(String status) {
     switch (status) {
       case 'pending': return Icons.pending;

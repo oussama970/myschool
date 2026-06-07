@@ -1,6 +1,11 @@
+// lib/screens/teacher/teacher_profile_screen.dart
+/// Écran enseignant pour la gestion du profil personnel
+/// Permet de modifier les informations (nom, téléphone), changer le mot de passe,
+/// et consulter les matières enseignées et les classes assignées
+
 import 'package:flutter/material.dart';
 import 'package:my_school_frontend/services/api_service.dart';
-import 'package:my_school_frontend/screens/login_screen.dart';
+import 'package:my_school_frontend/screens/auth/login_screen.dart';
 
 class TeacherProfileScreen extends StatefulWidget {
   final String teacherEmail;
@@ -57,6 +62,7 @@ class _TeacherProfileScreenState extends State<TeacherProfileScreen> {
     super.dispose();
   }
   
+  /// Charge les données de l'enseignant depuis l'API
   Future<void> _loadTeacherData() async {
     setState(() => _isLoading = true);
     try {
@@ -89,6 +95,7 @@ class _TeacherProfileScreenState extends State<TeacherProfileScreen> {
     }
   }
   
+  /// Met à jour le profil (nom et téléphone)
   Future<void> _updateProfile() async {
     if (!_formKey.currentState!.validate()) return;
     
@@ -117,6 +124,7 @@ class _TeacherProfileScreenState extends State<TeacherProfileScreen> {
     }
   }
   
+  /// Change le mot de passe après validation
   Future<void> _changePassword() async {
     if (_newPasswordController.text != _confirmPasswordController.text) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -160,6 +168,7 @@ class _TeacherProfileScreenState extends State<TeacherProfileScreen> {
     }
   }
   
+  /// Affiche le dialogue de changement de mot de passe
   void _showChangePasswordDialog() {
     _currentPasswordController.clear();
     _newPasswordController.clear();
@@ -218,6 +227,7 @@ class _TeacherProfileScreenState extends State<TeacherProfileScreen> {
     );
   }
   
+  /// Formate une date en JJ/MM/AAAA
   String _formatDate(String dateString) {
     try {
       final date = DateTime.parse(dateString);
@@ -227,6 +237,7 @@ class _TeacherProfileScreenState extends State<TeacherProfileScreen> {
     }
   }
 
+  /// Construit l'interface principale du profil
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -239,7 +250,7 @@ class _TeacherProfileScreenState extends State<TeacherProfileScreen> {
                 padding: const EdgeInsets.all(16),
                 child: Column(
                   children: [
-                    // Carte de profil avec dégradé
+                    // Carte de profil avec dégradé (header)
                     Container(
                       width: double.infinity,
                       padding: const EdgeInsets.all(20),
@@ -314,7 +325,7 @@ class _TeacherProfileScreenState extends State<TeacherProfileScreen> {
                     
                     const SizedBox(height: 16),
                     
-                    // Formulaire d'informations
+                    // Formulaire d'informations personnelles
                     Form(
                       key: _formKey,
                       child: Container(
@@ -553,7 +564,7 @@ class _TeacherProfileScreenState extends State<TeacherProfileScreen> {
                     
                     const SizedBox(height: 16),
                     
-                    // Informations compte
+                    // Informations du compte
                     Container(
                       width: double.infinity,
                       padding: const EdgeInsets.all(16),
@@ -603,7 +614,7 @@ class _TeacherProfileScreenState extends State<TeacherProfileScreen> {
                     
                     const SizedBox(height: 16),
                     
-                    // Bouton changer mot de passe
+                    // Bouton Changer le mot de passe
                     SizedBox(
                       width: double.infinity,
                       child: ElevatedButton.icon(
@@ -623,7 +634,7 @@ class _TeacherProfileScreenState extends State<TeacherProfileScreen> {
                     
                     const SizedBox(height: 12),
                     
-                    // Bouton déconnexion
+                    // Bouton Déconnexion
                     SizedBox(
                       width: double.infinity,
                       child: OutlinedButton.icon(
@@ -680,6 +691,7 @@ class _TeacherProfileScreenState extends State<TeacherProfileScreen> {
     );
   }
   
+  /// Construit un champ de formulaire éditable
   Widget _buildEditableField({
     required String label,
     required IconData icon,
@@ -714,6 +726,7 @@ class _TeacherProfileScreenState extends State<TeacherProfileScreen> {
     );
   }
   
+  /// Construit une ligne d'information avec icône, label et valeur
   Widget _buildInfoRow({
     required IconData icon,
     required String label,

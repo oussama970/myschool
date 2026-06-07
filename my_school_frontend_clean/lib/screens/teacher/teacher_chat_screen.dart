@@ -1,3 +1,7 @@
+// lib/screens/teacher/teacher_chat_screen.dart
+/// Écran de chat enseignant permettant d'échanger des messages texte et fichiers avec parents et élèves
+/// Fonctionnalités: WebSocket temps réel, envoi de photos/fichiers, indicateur de frappe, accusés de lecture
+
 import 'dart:async';
 import 'dart:io';
 import 'package:flutter/material.dart';
@@ -44,6 +48,10 @@ class _TeacherChatScreenState extends State<TeacherChatScreen> {
   int _unreadCount = 0;
   bool _isSending = false;
 
+  // ✅ IP de votre ordinateur (remplacez par votre IP)
+  static const String serverIp = '10.224.96.72';
+  static const String serverUrl = 'http://$serverIp:5000';
+
   final ImagePicker _picker = ImagePicker();
 
   @override
@@ -73,6 +81,7 @@ class _TeacherChatScreenState extends State<TeacherChatScreen> {
     super.dispose();
   }
 
+  /// Charge les informations de contact (nom, rôle, avatar)
   Future<void> _loadContactInfo() async {
     try {
       setState(() {
@@ -87,8 +96,10 @@ class _TeacherChatScreenState extends State<TeacherChatScreen> {
     }
   }
 
+  /// Initialise la connexion WebSocket pour les messages en temps réel
   void _initSocket() {
-    _socket = IO.io('http://10.0.2.2:5000', <String, dynamic>{
+    // ✅ Utilisation de l'IP dynamique
+    _socket = IO.io(serverUrl, <String, dynamic>{
       'transports': ['websocket'],
       'autoConnect': true,
       'reconnection': true,
@@ -223,6 +234,7 @@ class _TeacherChatScreenState extends State<TeacherChatScreen> {
     });
   }
 
+  /// Charge les messages depuis l'API REST
   Future<void> _loadMessages() async {
     if (!mounted) return;
     setState(() => _isLoading = true);
@@ -266,6 +278,7 @@ class _TeacherChatScreenState extends State<TeacherChatScreen> {
     }
   }
 
+  /// Fait défiler la liste jusqu'au dernier message
   void _scrollToBottom() {
     if (!mounted) return;
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -279,6 +292,7 @@ class _TeacherChatScreenState extends State<TeacherChatScreen> {
     });
   }
 
+  /// Gère l'indicateur de frappe (envoie un signal WebSocket)
   void _onTyping() {
     if (!_isConnected || !mounted) return;
     
@@ -302,6 +316,7 @@ class _TeacherChatScreenState extends State<TeacherChatScreen> {
     });
   }
 
+  /// Prend une photo avec l'appareil photo et l'ajoute aux pièces jointes
   Future<void> _takePhoto() async {
     try {
       final XFile? photo = await _picker.pickImage(
@@ -334,6 +349,7 @@ class _TeacherChatScreenState extends State<TeacherChatScreen> {
     }
   }
 
+  /// Sélectionne une image depuis la galerie
   Future<void> _pickImageFromGallery() async {
     try {
       final XFile? image = await _picker.pickImage(
@@ -366,6 +382,7 @@ class _TeacherChatScreenState extends State<TeacherChatScreen> {
     }
   }
 
+  /// Sélectionne un fichier depuis l'appareil (PDF, DOC, etc.)
   Future<void> _pickFile() async {
     try {
       FilePickerResult? result = await FilePicker.platform.pickFiles(
@@ -409,6 +426,7 @@ class _TeacherChatScreenState extends State<TeacherChatScreen> {
     }
   }
 
+  /// Détermine le type de fichier à partir de son extension
   String _getFileType(String fileName) {
     final ext = fileName.toLowerCase().split('.').last;
     if (['jpg', 'jpeg', 'png', 'gif', 'webp'].contains(ext)) return 'image';
@@ -419,12 +437,14 @@ class _TeacherChatScreenState extends State<TeacherChatScreen> {
     return 'file';
   }
 
+  /// Affiche un snackbar temporaire
   void _showSnackBar(String message, Color color) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text(message), backgroundColor: color, duration: const Duration(seconds: 2)),
     );
   }
 
+  /// Affiche les options d'ajout de pièces jointes (photo, galerie, fichier)
   void _showAttachmentOptions() {
     if (!mounted) return;
     showModalBottomSheet(
@@ -484,6 +504,7 @@ class _TeacherChatScreenState extends State<TeacherChatScreen> {
     );
   }
 
+  /// Supprime un fichier de la liste des pièces jointes
   void _removeFile(int index) {
     if (mounted) {
       setState(() {
@@ -492,6 +513,7 @@ class _TeacherChatScreenState extends State<TeacherChatScreen> {
     }
   }
 
+  /// Télécharge et ouvre un fichier depuis le serveur
   Future<void> _downloadAndOpenFile(String filename, String originalName) async {
     try {
       _showSnackBar('Téléchargement en cours...', Colors.blue);
@@ -518,6 +540,7 @@ class _TeacherChatScreenState extends State<TeacherChatScreen> {
     }
   }
 
+  /// Envoie un message avec les pièces jointes
   Future<void> _sendMessage() async {
     if (!mounted) return;
     if (_isSending) return;
@@ -609,6 +632,7 @@ class _TeacherChatScreenState extends State<TeacherChatScreen> {
     }
   }
 
+  /// Formate la date pour l'affichage (ex: 2j, 5h, 10min)
   String _formatDate(DateTime date) {
     final now = DateTime.now();
     final diff = now.difference(date);
@@ -624,6 +648,35 @@ class _TeacherChatScreenState extends State<TeacherChatScreen> {
     }
   }
 
+  /// Retourne l'icône correspondant au type de fichier local
+  IconData _getIconForFile(String type) {
+    switch (type) {
+      case 'image':
+        return Icons.image;
+      case 'video':
+        return Icons.video_library;
+      case 'audio':
+        return Icons.audiotrack;
+      case 'pdf':
+        return Icons.picture_as_pdf;
+      case 'word':
+        return Icons.description;
+      default:
+        return Icons.insert_drive_file;
+    }
+  }
+
+  /// Retourne l'icône correspondant au type de fichier depuis le serveur
+  IconData _getIconForFileType(String fileType) {
+    if (fileType == '.pdf') return Icons.picture_as_pdf;
+    if (fileType == '.jpg' || fileType == '.png' || fileType == '.jpeg' || fileType == '.webp') return Icons.image;
+    if (fileType == '.doc' || fileType == '.docx') return Icons.description;
+    if (fileType == '.mp4') return Icons.video_library;
+    if (fileType == '.mp3') return Icons.audiotrack;
+    return Icons.insert_drive_file;
+  }
+
+  /// Construit l'interface principale du chat
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -726,6 +779,7 @@ class _TeacherChatScreenState extends State<TeacherChatScreen> {
       ),
       body: Column(
         children: [
+          // Liste des messages
           Expanded(
             child: _isLoading
                 ? const Center(child: CircularProgressIndicator())
@@ -750,6 +804,7 @@ class _TeacherChatScreenState extends State<TeacherChatScreen> {
                   ),
           ),
 
+          // Aperçu des fichiers attachés
           if (_attachedFiles.isNotEmpty)
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -794,6 +849,7 @@ class _TeacherChatScreenState extends State<TeacherChatScreen> {
               ),
             ),
 
+          // Zone de saisie du message
           Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
@@ -849,23 +905,7 @@ class _TeacherChatScreenState extends State<TeacherChatScreen> {
     );
   }
 
-  IconData _getIconForFile(String type) {
-    switch (type) {
-      case 'image':
-        return Icons.image;
-      case 'video':
-        return Icons.video_library;
-      case 'audio':
-        return Icons.audiotrack;
-      case 'pdf':
-        return Icons.picture_as_pdf;
-      case 'word':
-        return Icons.description;
-      default:
-        return Icons.insert_drive_file;
-    }
-  }
-
+  /// Construit une bulle de message individuelle
   Widget _buildMessageBubble(String text, bool isMe, String time, List<dynamic> attachments, bool isRead, bool isPending) {
     return Align(
       alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
@@ -974,14 +1014,5 @@ class _TeacherChatScreenState extends State<TeacherChatScreen> {
         ),
       ),
     );
-  }
-
-  IconData _getIconForFileType(String fileType) {
-    if (fileType == '.pdf') return Icons.picture_as_pdf;
-    if (fileType == '.jpg' || fileType == '.png' || fileType == '.jpeg' || fileType == '.webp') return Icons.image;
-    if (fileType == '.doc' || fileType == '.docx') return Icons.description;
-    if (fileType == '.mp4') return Icons.video_library;
-    if (fileType == '.mp3') return Icons.audiotrack;
-    return Icons.insert_drive_file;
   }
 }

@@ -9,6 +9,9 @@ import 'parent_events_screen.dart';
 import 'parent_messages_screen.dart';
 import 'parent_profile_screen.dart';
 
+/// Tableau de bord principal pour le parent
+/// Permet de gérer plusieurs enfants, consulter les informations scolaires
+/// et accéder à toutes les fonctionnalités de l'application
 class ParentDashboardScreen extends StatefulWidget {
   final String parentEmail;
   final String parentName;
@@ -24,6 +27,7 @@ class ParentDashboardScreen extends StatefulWidget {
 }
 
 class _ParentDashboardScreenState extends State<ParentDashboardScreen> {
+  // ==================== VARIABLES D'ÉTAT ====================
   int _selectedIndex = 0;
   List<ChildModel> _children = [];
   ChildModel? _selectedChild;
@@ -32,6 +36,7 @@ class _ParentDashboardScreenState extends State<ParentDashboardScreen> {
   int _pendingEvents = 0;
   String _selectedChildClass = '';
 
+  // Menu de navigation
   final List<Map<String, dynamic>> _menuItems = [
     {'icon': Icons.dashboard, 'label': 'Accueil', 'page': 0},
     {'icon': Icons.menu_book, 'label': 'Cours', 'page': 1},
@@ -44,12 +49,17 @@ class _ParentDashboardScreenState extends State<ParentDashboardScreen> {
 
   late List<Widget> _pages;
 
+  // ==================== CYCLE DE VIE ====================
+  
   @override
   void initState() {
     super.initState();
     _loadChildren();
   }
 
+  // ==================== CHARGEMENT DES DONNÉES ====================
+  
+  /// Charge la liste des enfants du parent depuis l'API
   Future<void> _loadChildren() async {
     setState(() => _isLoading = true);
     try {
@@ -77,21 +87,63 @@ class _ParentDashboardScreenState extends State<ParentDashboardScreen> {
     }
   }
 
+  /// Charge les notifications (événements en attente)
   Future<void> _loadNotifications() async {
     if (_selectedChild == null) return;
     try {
+      print('🔄 Chargement notifications pour: ${_selectedChild!.fullName}');
       final eventsResult = await ApiService.getParentEvents(_selectedChild!.id);
-      if (eventsResult['success']) {
+      
+      if (eventsResult['success'] && mounted) {
         final events = eventsResult['events'] ?? [];
-        setState(() {
-          _pendingEvents = events.where((e) => e['myResponse'] == 'pending').length;
-        });
+        final now = DateTime.now();
+        
+        int pendingCount = 0;
+        
+        for (var event in events) {
+          final myResponse = event['myResponse'] ?? 'pending';
+          
+          // Ignorer si déjà répondu
+          if (myResponse != 'pending') continue;
+          
+          // Vérifier la date limite
+          final responseDeadline = event['responseDeadline'];
+          bool isDeadlinePassed = false;
+          
+          if (responseDeadline != null && responseDeadline.toString().isNotEmpty) {
+            try {
+              final deadline = DateTime.parse(responseDeadline.toString());
+              if (deadline.isBefore(now)) {
+                isDeadlinePassed = true;
+                print('⏰ Événement "${event['title']}" - Délai dépassé');
+              }
+            } catch (e) {
+              print('Erreur parsing date: $e');
+            }
+          }
+          
+          if (!isDeadlinePassed) {
+            pendingCount++;
+            print('✅ Événement "${event['title']}" - En attente');
+          }
+        }
+        
+        print('📊 Événements en attente valides: $pendingCount');
+        
+        if (mounted) {
+          setState(() {
+            _pendingEvents = pendingCount;
+          });
+        }
       }
     } catch (e) {
-      print('Erreur notifications: $e');
+      print('❌ Erreur _loadNotifications: $e');
     }
   }
 
+  // ==================== INITIALISATION DES PAGES ====================
+  
+  /// Initialise les pages du tableau de bord
   void _initPages() {
     _pages = [
       ParentHomePage(
@@ -127,10 +179,14 @@ class _ParentDashboardScreenState extends State<ParentDashboardScreen> {
     setState(() {});
   }
 
+  // ==================== NAVIGATION ====================
+  
+  /// Navigue vers la page sélectionnée
   void _navigateToPage(int index) {
     setState(() => _selectedIndex = index);
   }
 
+  /// Met à jour l'enfant sélectionné
   void _updateSelectedChild(ChildModel? child) {
     if (child != null && child != _selectedChild) {
       setState(() {
@@ -142,6 +198,9 @@ class _ParentDashboardScreenState extends State<ParentDashboardScreen> {
     }
   }
 
+  // ==================== GESTION DES ENFANTS ====================
+  
+  /// Affiche le dialogue pour lier un nouvel enfant
   void _showLinkChildDialog() {
     final List<TextEditingController> codeControllers = List.generate(10, (_) => TextEditingController());
     final List<FocusNode> focusNodes = List.generate(10, (_) => FocusNode());
@@ -261,6 +320,7 @@ class _ParentDashboardScreenState extends State<ParentDashboardScreen> {
     );
   }
 
+  /// Affiche le sélecteur d'enfant (pour les parents avec plusieurs enfants)
   void _showChildSelector() {
     if (_children.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -324,107 +384,130 @@ class _ParentDashboardScreenState extends State<ParentDashboardScreen> {
     );
   }
 
+  // ==================== BUILD UI ====================
+  
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFFF5F7FA),
       body: Column(
         children: [
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            decoration: const BoxDecoration(
-              gradient: LinearGradient(colors: [Color(0xFF0288D1), Color(0xFF4FC3F7)], begin: Alignment.topLeft, end: Alignment.bottomRight),
-            ),
-            child: SafeArea(
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Row(
-                    children: [
-                      Container(width: 36, height: 36, decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(8)), child: const Icon(Icons.school, color: Color(0xFF0288D1), size: 20)),
-                      const SizedBox(width: 8),
-                      const Text('MySchool', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.white)),
-                    ],
-                  ),
-                  Row(
-                    children: [
-                      GestureDetector(
-                        onTap: _isLoading ? null : _showChildSelector,
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                          decoration: BoxDecoration(color: Colors.white.withOpacity(0.2), borderRadius: BorderRadius.circular(20)),
-                          child: _isLoading
-                              ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                              : Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    const Icon(Icons.family_restroom, size: 14, color: Colors.white),
-                                    const SizedBox(width: 4),
-                                    Text(_selectedChild?.fullName ?? 'Aucun enfant', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w500, fontSize: 13)),
-                                    if (_children.length > 1) ...[const SizedBox(width: 4), Icon(Icons.arrow_drop_down, color: Colors.white.withOpacity(0.8), size: 18)],
-                                  ],
-                                ),
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      GestureDetector(
-                        onTap: _showLinkChildDialog,
-                        child: Container(padding: const EdgeInsets.all(6), decoration: BoxDecoration(color: Colors.white.withOpacity(0.2), borderRadius: BorderRadius.circular(20)), child: const Icon(Icons.add, color: Colors.white, size: 18)),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-          ),
+          // En-tête avec logo et sélecteur d'enfant
+          _buildHeader(),
+          
+          // Contenu principal
           Expanded(
             child: _isLoading ? const Center(child: CircularProgressIndicator()) : _pages[_selectedIndex],
           ),
-          Container(
-            decoration: BoxDecoration(color: Colors.white, boxShadow: [BoxShadow(color: Colors.grey.withOpacity(0.1), blurRadius: 10, offset: const Offset(0, -5))]),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceAround,
-              children: List.generate(_menuItems.length, (index) {
-                final isSelected = _selectedIndex == index;
-                return InkWell(
-                  onTap: () => setState(() => _selectedIndex = index),
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(vertical: 10),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Stack(
-                          clipBehavior: Clip.none,
-                          children: [
-                            Icon(_menuItems[index]['icon'], color: isSelected ? const Color(0xFF0288D1) : Colors.grey, size: 22),
-                            if (index == 4 && _pendingEvents > 0)
-                              Positioned(
-                                right: -8, top: -8,
-                                child: Container(
-                                  padding: const EdgeInsets.all(4),
-                                  decoration: const BoxDecoration(color: Colors.orange, shape: BoxShape.circle),
-                                  constraints: const BoxConstraints(minWidth: 16, minHeight: 16),
-                                  child: Text(_pendingEvents > 9 ? '9+' : '$_pendingEvents', style: const TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.bold), textAlign: TextAlign.center),
-                                ),
-                              ),
-                          ],
-                        ),
-                        const SizedBox(height: 4),
-                        Text(_menuItems[index]['label'], style: TextStyle(fontSize: 10, color: isSelected ? const Color(0xFF0288D1) : Colors.grey)),
-                      ],
-                    ),
-                  ),
-                );
-              }),
-            ),
-          ),
+          
+          // Barre de navigation inférieure
+          _buildBottomNavBar(),
         ],
+      ),
+    );
+  }
+
+  /// Construit l'en-tête de l'application
+  Widget _buildHeader() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(colors: [Color(0xFF0288D1), Color(0xFF4FC3F7)], begin: Alignment.topLeft, end: Alignment.bottomRight),
+      ),
+      child: SafeArea(
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            // Logo
+            Row(
+              children: [
+                Container(width: 36, height: 36, decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(8)), child: const Icon(Icons.school, color: Color(0xFF0288D1), size: 20)),
+                const SizedBox(width: 8),
+                const Text('MySchool', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.white)),
+              ],
+            ),
+            // Sélecteur d'enfant et bouton d'ajout
+            Row(
+              children: [
+                GestureDetector(
+                  onTap: _isLoading ? null : _showChildSelector,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    decoration: BoxDecoration(color: Colors.white.withOpacity(0.2), borderRadius: BorderRadius.circular(20)),
+                    child: _isLoading
+                        ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                        : Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Icon(Icons.family_restroom, size: 14, color: Colors.white),
+                              const SizedBox(width: 4),
+                              Text(_selectedChild?.fullName ?? 'Aucun enfant', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w500, fontSize: 13)),
+                              if (_children.length > 1) ...[const SizedBox(width: 4), Icon(Icons.arrow_drop_down, color: Colors.white.withOpacity(0.8), size: 18)],
+                            ],
+                          ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                GestureDetector(
+                  onTap: _showLinkChildDialog,
+                  child: Container(padding: const EdgeInsets.all(6), decoration: BoxDecoration(color: Colors.white.withOpacity(0.2), borderRadius: BorderRadius.circular(20)), child: const Icon(Icons.add, color: Colors.white, size: 18)),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// Construit la barre de navigation inférieure
+  Widget _buildBottomNavBar() {
+    return Container(
+      decoration: BoxDecoration(color: Colors.white, boxShadow: [BoxShadow(color: Colors.grey.withOpacity(0.1), blurRadius: 10, offset: const Offset(0, -5))]),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceAround,
+        children: List.generate(_menuItems.length, (index) {
+          final isSelected = _selectedIndex == index;
+          return InkWell(
+            onTap: () => setState(() => _selectedIndex = index),
+            child: Container(
+              padding: const EdgeInsets.symmetric(vertical: 10),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Stack(
+                    clipBehavior: Clip.none,
+                    children: [
+                      Icon(_menuItems[index]['icon'], color: isSelected ? const Color(0xFF0288D1) : Colors.grey, size: 22),
+                      // Badge pour les événements en attente
+                      if (index == 4 && _pendingEvents > 0)
+                        Positioned(
+                          right: -8, top: -8,
+                          child: Container(
+                            padding: const EdgeInsets.all(4),
+                            decoration: const BoxDecoration(color: Colors.orange, shape: BoxShape.circle),
+                            constraints: const BoxConstraints(minWidth: 16, minHeight: 16),
+                            child: Text(_pendingEvents > 9 ? '9+' : '$_pendingEvents', style: const TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.bold), textAlign: TextAlign.center),
+                          ),
+                        ),
+                    ],
+                  ),
+                  const SizedBox(height: 4),
+                  Text(_menuItems[index]['label'], style: TextStyle(fontSize: 10, color: isSelected ? const Color(0xFF0288D1) : Colors.grey)),
+                ],
+              ),
+            ),
+          );
+        }),
       ),
     );
   }
 }
 
-// Page d'accueil parent (sans "À FAIRE")
+// ==================== PAGE D'ACCUEIL PARENT ====================
+
+/// Page d'accueil du tableau de bord parent
+/// Affiche les informations de l'enfant sélectionné et les actions rapides
 class ParentHomePage extends StatelessWidget {
   final String parentName;
   final int childrenCount;
@@ -460,111 +543,133 @@ class ParentHomePage extends StatelessWidget {
         child: Column(
           children: [
             // Carte de bienvenue
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(20),
-              decoration: BoxDecoration(
-                gradient: const LinearGradient(colors: [Color(0xFF0288D1), Color(0xFF4FC3F7)], begin: Alignment.topLeft, end: Alignment.bottomRight),
-                borderRadius: BorderRadius.circular(20),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text('Bonjour,', style: TextStyle(fontSize: 14, color: Colors.white.withOpacity(0.8))),
-                  Text(parentName, style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.white)),
-                  const SizedBox(height: 16),
-                  Row(
-                    children: [
-                      Expanded(child: _buildStatCard(Icons.people, '$childrenCount', 'Enfants', Colors.white)),
-                      const SizedBox(width: 12),
-                      Expanded(child: _buildStatCard(Icons.class_, selectedChildClass, 'Classe', Colors.white)),
-                    ],
-                  ),
-                ],
-              ),
-            ),
+            _buildWelcomeCard(),
+            
             const SizedBox(height: 20),
             
-            // Enfant sélectionné
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(20),
-                boxShadow: [BoxShadow(color: Colors.grey.withOpacity(0.08), blurRadius: 15)],
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text('👶 ENFANT SÉLECTIONNÉ', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Color(0xFF01579B))),
-                  const SizedBox(height: 12),
-                  Row(
-                    children: [
-                      Container(
-                        width: 50, height: 50,
-                        decoration: BoxDecoration(color: const Color(0xFF0288D1).withOpacity(0.1), borderRadius: BorderRadius.circular(25)),
-                        child: Center(child: Text(selectedChildName.isNotEmpty ? selectedChildName.substring(0, 1).toUpperCase() : '?', style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Color(0xFF0288D1)))),
-                      ),
-                      const SizedBox(width: 16),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(selectedChildName, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-                            Text(selectedChildClass, style: TextStyle(fontSize: 13, color: Colors.grey[600])),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
+            // Carte de l'enfant sélectionné
+            _buildSelectedChildCard(),
+            
             const SizedBox(height: 20),
             
             // Menu rapide
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(20),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(20),
-                boxShadow: [BoxShadow(color: Colors.grey.withOpacity(0.08), blurRadius: 15)],
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text('📱 ACCÈS RAPIDE', style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Color(0xFF01579B))),
-                  const SizedBox(height: 16),
-                  Row(
-                    children: [
-                      Expanded(child: _buildMenuItem(Icons.menu_book, 'Cours', const Color(0xFF0288D1), onViewCourses)),
-                      const SizedBox(width: 12),
-                      Expanded(child: _buildMenuItem(Icons.grade, 'Notes', const Color(0xFF4CAF9F), onViewGrades)),
-                      const SizedBox(width: 12),
-                      Expanded(child: _buildMenuItem(Icons.event_busy, 'Absences', Colors.red, onViewAbsences)),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
-                  Row(
-                    children: [
-                      Expanded(child: _buildMenuItem(Icons.event, 'Événements', Colors.orange, onViewEvents)),
-                      const SizedBox(width: 12),
-                      Expanded(child: _buildMenuItem(Icons.message, 'Messages', const Color(0xFF0288D1), onViewMessages)),
-                      const SizedBox(width: 12),
-                      Expanded(child: Container()),
-                    ],
-                  ),
-                ],
-              ),
-            ),
+            _buildQuickAccessMenu(),
           ],
         ),
       ),
     );
   }
 
+  /// Construit la carte de bienvenue
+  Widget _buildWelcomeCard() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(colors: [Color(0xFF0288D1), Color(0xFF4FC3F7)], begin: Alignment.topLeft, end: Alignment.bottomRight),
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('Bonjour,', style: TextStyle(fontSize: 14, color: Colors.white.withOpacity(0.8))),
+          Text(parentName, style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.white)),
+          const SizedBox(height: 16),
+          Row(
+            children: [
+              Expanded(child: _buildStatCard(Icons.people, '$childrenCount', 'Enfants', Colors.white)),
+              const SizedBox(width: 12),
+              Expanded(child: _buildStatCard(Icons.class_, selectedChildClass, 'Classe', Colors.white)),
+            ],
+          ),
+          if (pendingEvents > 0) ...[
+            const SizedBox(height: 12),
+            _buildPendingEventsAlert(),
+          ],
+        ],
+      ),
+    );
+  }
+
+  /// Construit la carte de l'enfant sélectionné
+  Widget _buildSelectedChildCard() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [BoxShadow(color: Colors.grey.withOpacity(0.08), blurRadius: 15)],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text('👶 ENFANT SÉLECTIONNÉ', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Color(0xFF01579B))),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Container(
+                width: 50, height: 50,
+                decoration: BoxDecoration(color: const Color(0xFF0288D1).withOpacity(0.1), borderRadius: BorderRadius.circular(25)),
+                child: Center(child: Text(selectedChildName.isNotEmpty ? selectedChildName.substring(0, 1).toUpperCase() : '?', style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Color(0xFF0288D1)))),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(selectedChildName, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                    Text(selectedChildClass, style: TextStyle(fontSize: 13, color: Colors.grey[600])),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Construit le menu d'accès rapide
+  Widget _buildQuickAccessMenu() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [BoxShadow(color: Colors.grey.withOpacity(0.08), blurRadius: 15)],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text('📱 ACCÈS RAPIDE', style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Color(0xFF01579B))),
+          const SizedBox(height: 16),
+          Row(
+            children: [
+              Expanded(child: _buildMenuItem(Icons.menu_book, 'Cours', const Color(0xFF0288D1), onViewCourses)),
+              const SizedBox(width: 12),
+              Expanded(child: _buildMenuItem(Icons.grade, 'Notes', const Color(0xFF4CAF9F), onViewGrades)),
+              const SizedBox(width: 12),
+              Expanded(child: _buildMenuItem(Icons.event_busy, 'Absences', Colors.red, onViewAbsences)),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Expanded(child: _buildMenuItem(Icons.event, 'Événements', Colors.orange, onViewEvents)),
+              const SizedBox(width: 12),
+              Expanded(child: _buildMenuItem(Icons.message, 'Messages', const Color(0xFF0288D1), onViewMessages)),
+              const SizedBox(width: 12),
+              Expanded(child: Container()),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Construit une carte de statistique
   Widget _buildStatCard(IconData icon, String value, String label, Color color) {
     return Container(
       padding: const EdgeInsets.all(12),
@@ -587,6 +692,29 @@ class ParentHomePage extends StatelessWidget {
     );
   }
 
+  /// Construit l'alerte pour les événements en attente
+  Widget _buildPendingEventsAlert() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      decoration: BoxDecoration(
+        color: Colors.orange.withOpacity(0.2),
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Icon(Icons.notifications_active, size: 16, color: Colors.orange),
+          const SizedBox(width: 8),
+          Text(
+            '$pendingEvents événement(s) en attente',
+            style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500, color: Colors.orange),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Construit un élément du menu d'accès rapide
   Widget _buildMenuItem(IconData icon, String label, Color color, VoidCallback onTap) {
     return InkWell(
       onTap: onTap,

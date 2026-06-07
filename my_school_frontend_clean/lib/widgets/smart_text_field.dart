@@ -1,3 +1,7 @@
+// lib/widgets/smart_text_field.dart
+/// Widget de champ de texte intelligent avec focus management et style unifié
+/// Fournit une expérience utilisateur améliorée avec gestion automatique du focus
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 

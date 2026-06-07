@@ -1,9 +1,14 @@
 // lib/services/api/message_service.dart
+/// Service de messagerie pour la gestion des conversations
+/// Permet de récupérer les conversations, les messages, envoyer des messages,
+/// marquer comme lus et obtenir les contacts disponibles
+
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'api_client.dart';
 
 class MessageService {
+  /// Récupère la liste des conversations de l'utilisateur connecté
   static Future<Map<String, dynamic>> getConversations() async {
     try {
       final headers = await ApiClient.getHeaders();
@@ -21,6 +26,7 @@ class MessageService {
     }
   }
 
+  /// Récupère tous les messages d'une conversation avec un contact
   static Future<Map<String, dynamic>> getMessages(String contactId) async {
     try {
       final headers = await ApiClient.getHeaders();
@@ -38,6 +44,7 @@ class MessageService {
     }
   }
 
+  /// Envoie un message à un contact (avec pièces jointes optionnelles)
   static Future<Map<String, dynamic>> sendMessage({
     required String receiverId,
     required String receiverName,
@@ -68,6 +75,7 @@ class MessageService {
     }
   }
 
+  /// Marque un message comme lu
   static Future<Map<String, dynamic>> markAsRead(String messageId) async {
     try {
       final headers = await ApiClient.getHeaders();
@@ -85,6 +93,7 @@ class MessageService {
     }
   }
 
+  /// Récupère la liste des contacts disponibles (enseignants, parents, élèves)
   static Future<Map<String, dynamic>> getContacts() async {
     try {
       final headers = await ApiClient.getHeaders();

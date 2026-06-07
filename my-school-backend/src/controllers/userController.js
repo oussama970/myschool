@@ -1,11 +1,14 @@
+// backend/src/controllers/userController.js
+/// Contrôleur pour la gestion des utilisateurs (profil et enfants liés)
+/// Permet de récupérer le profil d'un parent et ses enfants liés
+
 const User = require('../models/User');
 
-// @desc    Obtenir le profil
-// @route   GET /api/users/profile
+/// Récupère le profil de l'utilisateur connecté avec ses enfants liés
 const getProfile = async (req, res) => {
   try {
     const user = await User.findById(req.user.id)
-      .select('-password')
+      .select('-password')  // Exclut le mot de passe
       .populate('linkedChildren', 'fullName email');
 
     return res.json(user);
@@ -15,8 +18,7 @@ const getProfile = async (req, res) => {
   }
 };
 
-// @desc    Obtenir les enfants liés
-// @route   GET /api/users/children
+/// Récupère la liste des enfants liés à un parent
 const getLinkedChildren = async (req, res) => {
   try {
     const parent = await User.findById(req.user.id)

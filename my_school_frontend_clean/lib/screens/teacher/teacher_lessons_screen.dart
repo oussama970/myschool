@@ -1,9 +1,15 @@
+// lib/screens/teacher/teacher_lessons_screen.dart
+/// Écran enseignant pour la gestion des contenus pédagogiques (Cours, Devoirs, Rappels)
+/// Permet d'ajouter, modifier, supprimer des contenus avec pièces jointes (images, PDF, etc.)
+/// et de consulter les soumissions des devoirs
+
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:my_school_frontend/services/api_service.dart';
 import 'package:open_file/open_file.dart';
+import 'teacher_homework_submissions_screen.dart';
 
 class TeacherLessonsScreen extends StatefulWidget {
   final String teacherEmail;
@@ -67,11 +73,13 @@ class _TeacherLessonsScreenState extends State<TeacherLessonsScreen> {
     super.dispose();
   }
 
+  /// Retourne la date actuelle au format JJ/MM/AAAA
   String _getCurrentDate() {
     final now = DateTime.now();
     return '${now.day}/${now.month}/${now.year}';
   }
 
+  /// Formate une date ISO en JJ/MM/AAAA
   String _formatDate(String? dateString) {
     if (dateString == null || dateString.isEmpty) return '';
     try {
@@ -82,12 +90,14 @@ class _TeacherLessonsScreenState extends State<TeacherLessonsScreen> {
     }
   }
 
+  /// Formate la taille d'un fichier (B, KB, MB)
   String _formatFileSize(int size) {
     if (size < 1024) return '$size B';
     if (size < 1024 * 1024) return '${(size / 1024).toStringAsFixed(1)} KB';
     return '${(size / (1024 * 1024)).toStringAsFixed(1)} MB';
   }
 
+  /// Charge tous les contenus depuis l'API
   Future<void> _loadData() async {
     setState(() => _isLoading = true);
     
@@ -96,6 +106,13 @@ class _TeacherLessonsScreenState extends State<TeacherLessonsScreen> {
       
       if (result['success']) {
         final List<dynamic> lessons = result['lessons'] ?? [];
+        
+        print('========== LOAD DATA ==========');
+        print('Total leçons trouvées: ${lessons.length}');
+        
+        for (var lesson in lessons) {
+          print('   - Type: ${lesson['type']}, Titre: ${lesson['title']}, Matière: ${lesson['subject']}');
+        }
         
         setState(() {
           _courses = lessons
@@ -126,17 +143,20 @@ class _TeacherLessonsScreenState extends State<TeacherLessonsScreen> {
                   }))
               .toList();
               
+          // ✅ CORRECTION: Ne pas filtrer les rappels par matière
           _reminders = lessons
-              .where((l) => l['type'] == 'Rappel' && l['subject'] == widget.teacherSubject)
+              .where((l) => l['type'] == 'Rappel')
               .map((l) => ({
                     'id': l['_id'],
                     'title': l['title'] ?? 'Sans titre',
                     'description': l['description'] ?? '',
                     'date': _formatDate(l['createdAt']),
+                    'hasFiles': (l['files'] as List?)?.isNotEmpty ?? false,
                     'files': l['files'] ?? [],
                   }))
               .toList();
           
+          print('Cours: ${_courses.length}, Devoirs: ${_homeworks.length}, Rappels: ${_reminders.length}');
           _isLoading = false;
         });
       } else {
@@ -148,6 +168,7 @@ class _TeacherLessonsScreenState extends State<TeacherLessonsScreen> {
     }
   }
 
+  /// Charge des données mockées en cas d'erreur
   void _loadMockData() {
     setState(() {
       _courses = [];
@@ -157,6 +178,7 @@ class _TeacherLessonsScreenState extends State<TeacherLessonsScreen> {
     });
   }
 
+  /// Réinitialise le formulaire d'ajout/édition
   void _resetForm() {
     _titleController.clear();
     _descriptionController.clear();
@@ -171,6 +193,7 @@ class _TeacherLessonsScreenState extends State<TeacherLessonsScreen> {
     _dateController.text = _getCurrentDate();
   }
 
+  /// Prend une photo avec l'appareil photo
   Future<void> _takePhoto() async {
     try {
       final XFile? photo = await _picker.pickImage(
@@ -195,6 +218,7 @@ class _TeacherLessonsScreenState extends State<TeacherLessonsScreen> {
     }
   }
 
+  /// Sélectionne une image depuis la galerie
   Future<void> _pickImageFromGallery() async {
     try {
       final XFile? image = await _picker.pickImage(
@@ -219,6 +243,7 @@ class _TeacherLessonsScreenState extends State<TeacherLessonsScreen> {
     }
   }
 
+  /// Sélectionne un fichier depuis l'appareil
   Future<void> _pickFile() async {
     try {
       FilePickerResult? result = await FilePicker.platform.pickFiles(
@@ -248,12 +273,14 @@ class _TeacherLessonsScreenState extends State<TeacherLessonsScreen> {
     }
   }
 
+  /// Affiche un snackbar temporaire
   void _showSnackBar(String message, Color color) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text(message), backgroundColor: color, duration: const Duration(seconds: 2)),
     );
   }
 
+  /// Affiche les options d'ajout de fichiers
   void _showAttachmentOptions() {
     showModalBottomSheet(
       context: context,
@@ -315,6 +342,7 @@ class _TeacherLessonsScreenState extends State<TeacherLessonsScreen> {
     );
   }
 
+  /// Supprime un fichier de la liste des pièces jointes
   void _removeFile(int index) {
     setState(() {
       _attachedFiles.removeAt(index);
@@ -322,6 +350,7 @@ class _TeacherLessonsScreenState extends State<TeacherLessonsScreen> {
     _showSnackBar('Fichier supprimé', Colors.orange);
   }
 
+  /// Enregistre un contenu (création ou modification)
   Future<void> _saveContent() async {
     if (_titleController.text.isEmpty) {
       _showSnackBar('Veuillez entrer un titre', Colors.orange);
@@ -410,6 +439,7 @@ class _TeacherLessonsScreenState extends State<TeacherLessonsScreen> {
     }
   }
 
+  /// Supprime un contenu après confirmation
   void _deleteContent(int index, String type) {
     String? id;
     if (type == 'Cours' && index < _courses.length) {
@@ -455,6 +485,7 @@ class _TeacherLessonsScreenState extends State<TeacherLessonsScreen> {
     );
   }
 
+  /// Ouvre un fichier (image en dialogue ou autre avec l'application par défaut)
   Future<void> _openFile(Map<String, dynamic> file) async {
     try {
       final String filename = file['filename'];
@@ -495,6 +526,7 @@ class _TeacherLessonsScreenState extends State<TeacherLessonsScreen> {
     }
   }
 
+  /// Affiche une image en plein écran (dialogue avec InteractiveViewer)
   void _showImageDialog(String filePath, String fileName) {
     showDialog(
       context: context,
@@ -579,6 +611,7 @@ class _TeacherLessonsScreenState extends State<TeacherLessonsScreen> {
     );
   }
 
+  /// Affiche les détails d'un contenu (dialogue)
   void _showDetails(Map<String, dynamic> item, String type) {
     List<dynamic> files = item['files'] ?? [];
     
@@ -633,6 +666,7 @@ class _TeacherLessonsScreenState extends State<TeacherLessonsScreen> {
     );
   }
 
+  /// Retourne l'icône correspondant au type de fichier
   Icon _getFileIcon(String fileType) {
     if (fileType == '.pdf') {
       return const Icon(Icons.picture_as_pdf, color: Colors.red);
@@ -653,6 +687,7 @@ class _TeacherLessonsScreenState extends State<TeacherLessonsScreen> {
     }
   }
 
+  /// Affiche le formulaire d'ajout/édition de contenu
   void _showFormDialog({bool isEditing = false}) {
     _attachedFiles.clear();
     
@@ -683,6 +718,7 @@ class _TeacherLessonsScreenState extends State<TeacherLessonsScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
+                        // Indicateur de glissement
                         Center(
                           child: Container(
                             width: 40,
@@ -700,7 +736,7 @@ class _TeacherLessonsScreenState extends State<TeacherLessonsScreen> {
                         ),
                         const SizedBox(height: 20),
                         
-                        // Type
+                        // Sélection du type (Cours/Devoir/Rappel)
                         const Text('Type *', style: TextStyle(fontWeight: FontWeight.w600)),
                         const SizedBox(height: 8),
                         Container(
@@ -729,7 +765,7 @@ class _TeacherLessonsScreenState extends State<TeacherLessonsScreen> {
                         
                         const SizedBox(height: 16),
                         
-                        // Titre
+                        // Champ titre
                         const Text('Titre *', style: TextStyle(fontWeight: FontWeight.w600)),
                         const SizedBox(height: 8),
                         TextField(
@@ -743,7 +779,7 @@ class _TeacherLessonsScreenState extends State<TeacherLessonsScreen> {
                         
                         const SizedBox(height: 16),
                         
-                        // Matière (verrouillée à la matière de l'enseignant)
+                        // Matière (verrouillée pour Cours et Devoirs)
                         if (_selectedType != 'Rappel') ...[
                           const Text('Matière *', style: TextStyle(fontWeight: FontWeight.w600)),
                           const SizedBox(height: 8),
@@ -768,7 +804,7 @@ class _TeacherLessonsScreenState extends State<TeacherLessonsScreen> {
                           const SizedBox(height: 16),
                         ],
                         
-                        // Description
+                        // Champ description
                         const Text('Description', style: TextStyle(fontWeight: FontWeight.w600)),
                         const SizedBox(height: 8),
                         TextField(
@@ -783,7 +819,7 @@ class _TeacherLessonsScreenState extends State<TeacherLessonsScreen> {
                         
                         const SizedBox(height: 16),
                         
-                        // Date
+                        // Champ date
                         const Text('Date *', style: TextStyle(fontWeight: FontWeight.w600)),
                         const SizedBox(height: 8),
                         TextField(
@@ -795,6 +831,7 @@ class _TeacherLessonsScreenState extends State<TeacherLessonsScreen> {
                           ),
                         ),
                         
+                        // Champ date limite (uniquement pour les devoirs)
                         if (_showDeadline) ...[
                           const SizedBox(height: 16),
                           const Text('Date limite *', style: TextStyle(fontWeight: FontWeight.w600)),
@@ -811,7 +848,7 @@ class _TeacherLessonsScreenState extends State<TeacherLessonsScreen> {
                         
                         const SizedBox(height: 24),
                         
-                        // Pièces jointes
+                        // Section pièces jointes
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
@@ -887,6 +924,7 @@ class _TeacherLessonsScreenState extends State<TeacherLessonsScreen> {
                         
                         const SizedBox(height: 24),
                         
+                        // Boutons Annuler/Enregistrer
                         Row(
                           children: [
                             Expanded(
@@ -932,6 +970,7 @@ class _TeacherLessonsScreenState extends State<TeacherLessonsScreen> {
     );
   }
 
+  /// Construit un élément d'affichage d'un fichier attaché
   Widget _buildAttachmentItem(Map<String, dynamic> file, int index, StateSetter setModalState) {
     IconData icon;
     Color color;
@@ -1006,31 +1045,64 @@ class _TeacherLessonsScreenState extends State<TeacherLessonsScreen> {
     );
   }
 
+  /// Prépare l'édition d'un contenu existant
   void _editContent(Map<String, dynamic> item, String type) {
+    print('========== EDIT CONTENT ==========');
+    print('Type reçu: $type');
+    print('ID: ${item['id']}');
+    print('Titre: ${item['title']}');
+    
     _resetForm();
     _isEditing = true;
     _editingId = item['id'].toString();
     _editingType = type;
-    _selectedType = type;
     
     _titleController.text = item['title'] ?? '';
     _descriptionController.text = item['description'] ?? '';
+    _selectedSubject = item['subject'] ?? widget.teacherSubject;
     
-    if (type == 'Rappel') {
-      _selectedSubject = widget.teacherSubject;
-      _showDeadline = false;
-    } else if (type == 'Cours') {
-      _selectedSubject = item['subject'] ?? widget.teacherSubject;
-      _showDeadline = false;
-    } else if (type == 'Devoir') {
-      _selectedSubject = item['subject'] ?? widget.teacherSubject;
+    if (type == 'Devoir') {
+      _selectedType = 'Devoir';
       _showDeadline = true;
       _deadlineController.text = item['deadline'] ?? '';
+      print('✅ Mode édition: DEVOIR');
+    } 
+    else if (type == 'Rappel' || type == 'Rappels') {
+      _selectedType = 'Rappel';
+      _showDeadline = false;
+      print('✅ Mode édition: RAPPEL');
     }
+    else {
+      _selectedType = 'Cours';
+      _showDeadline = false;
+      print('✅ Mode édition: COURS');
+    }
+    
+    if (_selectedType != 'Rappel') {
+      _selectedSubject = item['subject'] ?? widget.teacherSubject;
+    }
+    
+    print('_selectedType: $_selectedType');
+    print('_selectedSubject: $_selectedSubject');
+    print('_showDeadline: $_showDeadline');
     
     _showFormDialog(isEditing: true);
   }
 
+  /// Navigue vers l'écran des soumissions pour un devoir
+  void _viewSubmissions(Map<String, dynamic> homework) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => TeacherHomeworkSubmissionsScreen(
+          lessonId: homework['id'],
+          lessonTitle: homework['title'],
+        ),
+      ),
+    ).then((_) => _loadData());
+  }
+
+  /// Construit l'interface principale avec les onglets
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -1051,6 +1123,7 @@ class _TeacherLessonsScreenState extends State<TeacherLessonsScreen> {
       body: Column(
         children: [
           const SizedBox(height: 10),
+          // Barre d'onglets
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 20),
             child: Container(
@@ -1097,13 +1170,14 @@ class _TeacherLessonsScreenState extends State<TeacherLessonsScreen> {
             ),
           ),
           const SizedBox(height: 20),
+          // Liste selon l'onglet sélectionné
           Expanded(
             child: _isLoading
                 ? const Center(child: CircularProgressIndicator())
                 : _selectedTab == 0
                     ? _buildList(_courses, 'Cours')
                     : _selectedTab == 1
-                        ? _buildList(_homeworks, 'Devoir')
+                        ? _buildHomeworkList(_homeworks)
                         : _buildList(_reminders, 'Rappels'),
           ),
         ],
@@ -1116,6 +1190,104 @@ class _TeacherLessonsScreenState extends State<TeacherLessonsScreen> {
     );
   }
 
+  /// Construit la liste des devoirs (avec bouton de soumissions)
+  Widget _buildHomeworkList(List<Map<String, dynamic>> items) {
+    if (items.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.folder_open, size: 80, color: Colors.grey[400]),
+            const SizedBox(height: 16),
+            Text(
+              'Aucun devoir',
+              style: TextStyle(fontSize: 16, color: Colors.grey[600]),
+            ),
+            const SizedBox(height: 8),
+            TextButton.icon(
+              onPressed: () => _showFormDialog(),
+              icon: const Icon(Icons.add),
+              label: const Text('Ajouter un devoir'),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return RefreshIndicator(
+      onRefresh: _loadData,
+      child: ListView.builder(
+        padding: const EdgeInsets.all(16),
+        itemCount: items.length,
+        itemBuilder: (context, index) {
+          final item = items[index];
+
+          return Card(
+            margin: const EdgeInsets.only(bottom: 12),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: ListTile(
+              contentPadding: const EdgeInsets.all(16),
+              leading: Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF4CAF9F).withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Icon(
+                  Icons.assignment,
+                  color: Color(0xFF4CAF9F),
+                ),
+              ),
+              title: Text(
+                item['title'] ?? '',
+                style: const TextStyle(fontWeight: FontWeight.bold),
+              ),
+              subtitle: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    '${item['subject'] ?? ''} • À rendre: ${item['deadline'] ?? 'À définir'}',
+                    style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                  ),
+                  if (item['hasFiles'] == true)
+                    const Text(
+                      '📎 Fichier joint',
+                      style: TextStyle(fontSize: 12, color: Colors.grey),
+                    ),
+                ],
+              ),
+              trailing: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  IconButton(
+                    icon: const Icon(Icons.assignment_turned_in, size: 20, color: Color(0xFF4CAF9F)),
+                    onPressed: () => _viewSubmissions(item),
+                    tooltip: 'Voir les soumissions',
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.visibility, size: 20, color: Color(0xFF0288D1)),
+                    onPressed: () => _showDetails(item, 'Devoir'),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.edit, size: 20, color: Colors.orange),
+                    onPressed: () => _editContent(item, 'Devoir'),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.delete, size: 20, color: Colors.red),
+                    onPressed: () => _deleteContent(index, 'Devoir'),
+                  ),
+                ],
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  /// Construit une liste générique (Cours ou Rappels)
   Widget _buildList(List<Map<String, dynamic>> items, String type) {
     if (items.isEmpty) {
       return Center(
@@ -1146,9 +1318,6 @@ class _TeacherLessonsScreenState extends State<TeacherLessonsScreen> {
         itemCount: items.length,
         itemBuilder: (context, index) {
           final item = items[index];
-          final displayType = type == 'Devoir'
-              ? 'Devoir'
-              : (type == 'Rappels' ? 'Rappel' : type);
 
           return Card(
             margin: const EdgeInsets.only(bottom: 12),
@@ -1203,7 +1372,7 @@ class _TeacherLessonsScreenState extends State<TeacherLessonsScreen> {
                   ),
                   IconButton(
                     icon: const Icon(Icons.edit, size: 20, color: Colors.orange),
-                    onPressed: () => _editContent(item, displayType),
+                    onPressed: () => _editContent(item, type),
                   ),
                   IconButton(
                     icon: const Icon(Icons.delete, size: 20, color: Colors.red),

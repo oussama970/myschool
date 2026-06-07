@@ -55,12 +55,84 @@ class _ParentEventsScreenState extends State<ParentEventsScreen>
     }
   }
 
+  //  Vérifier si la date limite est dépassée
+  bool _isResponseDeadlinePassed(String? deadlineString) {
+    if (deadlineString == null || deadlineString.isEmpty) return false;
+    try {
+      final deadline = DateTime.parse(deadlineString);
+      return deadline.isBefore(DateTime.now());
+    } catch (e) {
+      return false;
+    }
+  }
+
+  //  Compter les événements en attente valides (calculé en temps réel)
+  int _getPendingEventsCount() {
+    if (_events.isEmpty) return 0;
+    
+    final now = DateTime.now();
+    int count = 0;
+    
+    for (var event in _events) {
+      final myResponse = event['myResponse'] ?? 'pending';
+      
+      // Ignorer si déjà répondu
+      if (myResponse != 'pending') continue;
+      
+      // Vérifier la date limite
+      final responseDeadline = event['responseDeadline'];
+      if (responseDeadline != null && responseDeadline.toString().isNotEmpty) {
+        try {
+          final deadline = DateTime.parse(responseDeadline.toString());
+          if (deadline.isBefore(now)) continue; // Délai dépassé
+        } catch (e) {
+          // Si erreur de parsing, on considère que c'est valide
+        }
+      }
+      count++;
+    }
+    
+    return count;
+  }
+
+  //  Compter les événements historiques
+  int _getHistoryEventsCount() {
+    if (_events.isEmpty) return 0;
+    
+    final now = DateTime.now();
+    int count = 0;
+    
+    for (var event in _events) {
+      final myResponse = event['myResponse'] ?? 'pending';
+      
+      // Déjà répondu
+      if (myResponse != 'pending') {
+        count++;
+        continue;
+      }
+      
+      // En attente mais date limite dépassée
+      final responseDeadline = event['responseDeadline'];
+      if (responseDeadline != null && responseDeadline.toString().isNotEmpty) {
+        try {
+          final deadline = DateTime.parse(responseDeadline.toString());
+          if (deadline.isBefore(now)) {
+            count++;
+          }
+        } catch (e) {}
+      }
+    }
+    
+    return count;
+  }
+
   Future<void> _loadEvents() async {
     if (widget.selectedChild == null) {
       setState(() {
         _events = [];
         _isLoading = false;
       });
+      widget.onResponseChanged?.call();
       return;
     }
     
@@ -70,40 +142,23 @@ class _ParentEventsScreenState extends State<ParentEventsScreen>
       
       final result = await ApiService.getParentEvents(widget.selectedChild!.id);
       
+      print('========== DÉBOGAGE ==========');
+      print('Succès: ${result['success']}');
+      print('Événements reçus: ${result['events']?.length ?? 0}');
+      
       if (mounted) {
         List<Map<String, dynamic>> loadedEvents = List<Map<String, dynamic>>.from(result['events'] ?? []);
-        
-        // Traiter les événements pour marquer ceux dont le délai est dépassé comme "refusés"
-        final now = DateTime.now();
-        for (var i = 0; i < loadedEvents.length; i++) {
-          final event = loadedEvents[i];
-          final myResponse = event['myResponse'] ?? 'pending';
-          final responseDeadline = event['responseDeadline'];
-          
-          // Si l'événement est encore en attente ET que la date limite est dépassée
-          if (myResponse == 'pending' && responseDeadline != null && responseDeadline.toString().isNotEmpty) {
-            try {
-              final deadline = DateTime.parse(responseDeadline.toString());
-              if (deadline.isBefore(now)) {
-                // Marquer automatiquement comme refusé
-                loadedEvents[i]['myResponse'] = 'rejected';
-                loadedEvents[i]['autoRejected'] = true; // Marqueur pour indiquer que c'est automatique
-                print('⏰ Événement "${event['title']}" marqué comme refusé (délai dépassé)');
-              }
-            } catch (e) {
-              print('Erreur parsing date limite: $e');
-            }
-          }
-        }
         
         setState(() {
           _events = loadedEvents;
           _isLoading = false;
         });
         
-        print('✅ ${_events.length} événements trouvés');
-      } else {
-        setState(() => _isLoading = false);
+        print('📊 À valider: ${_getPendingEventsCount()}');
+        print('📊 Historique: ${_getHistoryEventsCount()}');
+        
+        //  Notifier le parent pour mettre à jour le badge
+        widget.onResponseChanged?.call();
       }
     } catch (e) {
       print('❌ Erreur: $e');
@@ -128,7 +183,6 @@ class _ParentEventsScreenState extends State<ParentEventsScreen>
       
       if (result['success'] && mounted) {
         await _loadEvents();
-        widget.onResponseChanged?.call();
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('✅ ${response == 'accepted' ? 'Accepté' : 'Refusé'} : $eventTitle'),
@@ -192,66 +246,11 @@ class _ParentEventsScreenState extends State<ParentEventsScreen>
     return '${date.day} ${months[date.month - 1]} ${date.year}';
   }
 
-  bool _isEventPast(String dateString) {
-    try {
-      final date = DateTime.parse(dateString);
-      return date.isBefore(DateTime.now());
-    } catch (e) {
-      return false;
-    }
-  }
-
-  bool _isResponseDeadlinePassed(String? deadlineString) {
-    if (deadlineString == null || deadlineString.isEmpty) return false;
-    try {
-      final deadline = DateTime.parse(deadlineString);
-      return deadline.isBefore(DateTime.now());
-    } catch (e) {
-      return false;
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
-    // Filtrer les événements:
-    // - À valider: événements en attente ET date limite non dépassée
-    // - Historique: événements avec réponse (accepté/refusé) OU date limite dépassée
-    final now = DateTime.now();
-    
-    final pendingEvents = _events.where((e) {
-      final myResponse = e['myResponse'] ?? 'pending';
-      final responseDeadline = e['responseDeadline'];
-      
-      if (myResponse != 'pending') return false;
-      
-      // Si pas de date limite, reste dans "À valider"
-      if (responseDeadline == null || responseDeadline.toString().isEmpty) return true;
-      
-      // Vérifier si la date limite est dépassée
-      try {
-        final deadline = DateTime.parse(responseDeadline.toString());
-        return !deadline.isBefore(now);
-      } catch (e) {
-        return true;
-      }
-    }).toList();
-    
-    final historyEvents = _events.where((e) {
-      final myResponse = e['myResponse'] ?? 'pending';
-      if (myResponse != 'pending') return true;
-      
-      // Les événements en attente avec date limite dépassée vont dans l'historique
-      final responseDeadline = e['responseDeadline'];
-      if (responseDeadline != null && responseDeadline.toString().isNotEmpty) {
-        try {
-          final deadline = DateTime.parse(responseDeadline.toString());
-          return deadline.isBefore(now);
-        } catch (e) {
-          return false;
-        }
-      }
-      return false;
-    }).toList();
+    //  Recalculer les compteurs à chaque build
+    final pendingCount = _getPendingEventsCount();
+    final historyCount = _getHistoryEventsCount();
 
     if (widget.selectedChild == null) {
       return Scaffold(
@@ -278,6 +277,41 @@ class _ParentEventsScreenState extends State<ParentEventsScreen>
       );
     }
 
+    // Filtrer les événements pour les listes
+    final now = DateTime.now();
+    
+    final pendingEvents = _events.where((event) {
+      final myResponse = event['myResponse'] ?? 'pending';
+      if (myResponse != 'pending') return false;
+      
+      final responseDeadline = event['responseDeadline'];
+      if (responseDeadline != null && responseDeadline.toString().isNotEmpty) {
+        try {
+          final deadline = DateTime.parse(responseDeadline.toString());
+          return !deadline.isBefore(now);
+        } catch (e) {
+          return true;
+        }
+      }
+      return true;
+    }).toList();
+    
+    final historyEvents = _events.where((event) {
+      final myResponse = event['myResponse'] ?? 'pending';
+      if (myResponse != 'pending') return true;
+      
+      final responseDeadline = event['responseDeadline'];
+      if (responseDeadline != null && responseDeadline.toString().isNotEmpty) {
+        try {
+          final deadline = DateTime.parse(responseDeadline.toString());
+          return deadline.isBefore(now);
+        } catch (e) {
+          return false;
+        }
+      }
+      return false;
+    }).toList();
+
     return Scaffold(
       backgroundColor: const Color(0xFFF5F7FA),
       appBar: AppBar(
@@ -300,14 +334,66 @@ class _ParentEventsScreenState extends State<ParentEventsScreen>
                   ),
                   child: Row(
                     children: [
-                      _buildTab('📝 À valider (${pendingEvents.length})', pendingEvents.length, 0),
-                      _buildTab('📜 Historique (${historyEvents.length})', historyEvents.length, 1),
+                      Expanded(
+                        child: GestureDetector(
+                          onTap: () {
+                            setState(() {
+                              _selectedTabIndex = 0;
+                              _tabController.animateTo(0);
+                            });
+                          },
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(vertical: 12),
+                            decoration: BoxDecoration(
+                              color: _selectedTabIndex == 0 ? const Color(0xFF0288D1) : Colors.transparent,
+                              borderRadius: BorderRadius.circular(30),
+                            ),
+                            child: Center(
+                              child: Text(
+                                '📝 À valider ($pendingCount)',
+                                style: TextStyle(
+                                  color: _selectedTabIndex == 0 ? Colors.white : Colors.grey[700],
+                                  fontWeight: FontWeight.w500,
+                                  fontSize: 13,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                      Expanded(
+                        child: GestureDetector(
+                          onTap: () {
+                            setState(() {
+                              _selectedTabIndex = 1;
+                              _tabController.animateTo(1);
+                            });
+                          },
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(vertical: 12),
+                            decoration: BoxDecoration(
+                              color: _selectedTabIndex == 1 ? const Color(0xFF0288D1) : Colors.transparent,
+                              borderRadius: BorderRadius.circular(30),
+                            ),
+                            child: Center(
+                              child: Text(
+                                '📜 Historique ($historyCount)',
+                                style: TextStyle(
+                                  color: _selectedTabIndex == 1 ? Colors.white : Colors.grey[700],
+                                  fontWeight: FontWeight.w500,
+                                  fontSize: 13,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
                     ],
                   ),
                 ),
                 Expanded(
-                  child: TabBarView(
-                    controller: _tabController,
+                  child: IndexedStack(
+                    index: _selectedTabIndex,
                     children: [
                       _buildEventsList(pendingEvents, true),
                       _buildEventsList(historyEvents, false),
@@ -316,37 +402,6 @@ class _ParentEventsScreenState extends State<ParentEventsScreen>
                 ),
               ],
             ),
-    );
-  }
-
-  Widget _buildTab(String text, int count, int index) {
-    final isSelected = _selectedTabIndex == index;
-    return Expanded(
-      child: GestureDetector(
-        onTap: () {
-          setState(() {
-            _selectedTabIndex = index;
-            _tabController.animateTo(index);
-          });
-        },
-        child: Container(
-          padding: const EdgeInsets.symmetric(vertical: 12),
-          decoration: BoxDecoration(
-            color: isSelected ? const Color(0xFF0288D1) : Colors.transparent,
-            borderRadius: BorderRadius.circular(30),
-          ),
-          child: Center(
-            child: Text(
-              text,
-              style: TextStyle(
-                color: isSelected ? Colors.white : Colors.grey[700],
-                fontWeight: FontWeight.w500,
-                fontSize: 13,
-              ),
-            ),
-          ),
-        ),
-      ),
     );
   }
 
@@ -366,12 +421,6 @@ class _ParentEventsScreenState extends State<ParentEventsScreen>
               isPending ? 'Aucun événement à valider' : 'Aucun événement dans l\'historique',
               style: TextStyle(fontSize: 16, color: Colors.grey[600]),
             ),
-            const SizedBox(height: 8),
-            if (isPending)
-              Text(
-                'Pour ${widget.selectedChild!.fullName}',
-                style: TextStyle(fontSize: 12, color: Colors.grey[500]),
-              ),
           ],
         ),
       );
@@ -389,12 +438,10 @@ class _ParentEventsScreenState extends State<ParentEventsScreen>
           final isSubmitting = _isSubmitting[event['_id']] ?? false;
           final responseDeadline = event['responseDeadline'];
           final isDeadlinePassed = _isResponseDeadlinePassed(responseDeadline);
-          final isAutoRejected = event['autoRejected'] == true;
           
-          // Déterminer si on affiche les boutons
+          // Afficher les boutons seulement si en attente et délai non dépassé
           final bool showButtons = isPending && !isDeadlinePassed && myResponse == 'pending';
           
-          // Déterminer la couleur et l'icône du statut
           Color statusColor;
           IconData statusIcon;
           String statusText;
@@ -404,19 +451,17 @@ class _ParentEventsScreenState extends State<ParentEventsScreen>
             statusIcon = Icons.check_circle;
             statusText = '✅ Participation acceptée';
           } else if (myResponse == 'rejected') {
-            if (isAutoRejected) {
-              statusColor = Colors.grey;
-              statusIcon = Icons.timer_off;
-              statusText = '⏰ Délai de réponse dépassé ';
-            } else {
-              statusColor = Colors.red;
-              statusIcon = Icons.cancel;
-              statusText = '❌ Participation refusée';
-            }
+            statusColor = Colors.red;
+            statusIcon = Icons.cancel;
+            statusText = '❌ Participation refusée';
+          } else if (isDeadlinePassed) {
+            statusColor = Colors.grey;
+            statusIcon = Icons.timer_off;
+            statusText = '⏰ Délai dépassé';
           } else {
-            statusColor = const Color(0xFF0288D1);
+            statusColor = Colors.orange;
             statusIcon = Icons.pending;
-            statusText = '⏳ En attente de réponse';
+            statusText = '⏳ En attente';
           }
 
           return Card(
@@ -438,11 +483,7 @@ class _ParentEventsScreenState extends State<ParentEventsScreen>
                           color: statusColor.withOpacity(0.1),
                           borderRadius: BorderRadius.circular(12),
                         ),
-                        child: Icon(
-                          statusIcon,
-                          color: statusColor,
-                          size: 28,
-                        ),
+                        child: Icon(statusIcon, color: statusColor, size: 28),
                       ),
                       const SizedBox(width: 16),
                       Expanded(
@@ -451,55 +492,26 @@ class _ParentEventsScreenState extends State<ParentEventsScreen>
                           children: [
                             Text(
                               event['title'] ?? 'Sans titre',
-                              style: const TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.bold,
-                              ),
+                              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                             ),
                             const SizedBox(height: 4),
                             Row(
                               children: [
                                 const Icon(Icons.calendar_today, size: 12, color: Colors.grey),
                                 const SizedBox(width: 4),
-                                Text(
-                                  _formatDate(date),
-                                  style: TextStyle(fontSize: 12, color: Colors.grey[600]),
-                                ),
+                                Text(_formatDate(date), style: TextStyle(fontSize: 12, color: Colors.grey[600])),
                               ],
                             ),
-                            if (responseDeadline != null && responseDeadline.toString().isNotEmpty && !isDeadlinePassed)
-                              Row(
-                                children: [
-                                  const Icon(Icons.access_time, size: 12, color: Colors.orange),
-                                  const SizedBox(width: 4),
-                                  Text(
-                                    'Réponse avant: ${_formatDate(DateTime.parse(responseDeadline.toString()))}',
-                                    style: TextStyle(fontSize: 11, color: Colors.orange[700]),
-                                  ),
-                                ],
-                              ),
-                            // Badge de statut compact
                             Container(
                               margin: const EdgeInsets.only(top: 6),
-                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                               decoration: BoxDecoration(
                                 color: statusColor.withOpacity(0.1),
                                 borderRadius: BorderRadius.circular(12),
                               ),
-                              child: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Icon(statusIcon, size: 12, color: statusColor),
-                                  const SizedBox(width: 4),
-                                  Text(
-                                    statusText,
-                                    style: TextStyle(
-                                      fontSize: 10,
-                                      fontWeight: FontWeight.w500,
-                                      color: statusColor,
-                                    ),
-                                  ),
-                                ],
+                              child: Text(
+                                statusText,
+                                style: TextStyle(fontSize: 11, fontWeight: FontWeight.w500, color: statusColor),
                               ),
                             ),
                           ],
@@ -509,10 +521,7 @@ class _ParentEventsScreenState extends State<ParentEventsScreen>
                   ),
                   if (event['description'] != null && event['description'].isNotEmpty) ...[
                     const SizedBox(height: 12),
-                    Text(
-                      event['description'],
-                      style: TextStyle(fontSize: 13, color: Colors.grey[600]),
-                    ),
+                    Text(event['description'], style: TextStyle(fontSize: 13, color: Colors.grey[600])),
                   ],
                   if (showButtons) ...[
                     const SizedBox(height: 16),
@@ -520,9 +529,7 @@ class _ParentEventsScreenState extends State<ParentEventsScreen>
                       children: [
                         Expanded(
                           child: OutlinedButton.icon(
-                            onPressed: isSubmitting
-                                ? null
-                                : () => _showConfirmDialog(event['_id'], event['title'], 'rejected'),
+                            onPressed: isSubmitting ? null : () => _showConfirmDialog(event['_id'], event['title'], 'rejected'),
                             icon: const Icon(Icons.close, size: 18),
                             label: const Text('REFUSER'),
                             style: OutlinedButton.styleFrom(
@@ -534,16 +541,12 @@ class _ParentEventsScreenState extends State<ParentEventsScreen>
                         const SizedBox(width: 12),
                         Expanded(
                           child: ElevatedButton.icon(
-                            onPressed: isSubmitting
-                                ? null
-                                : () => _showConfirmDialog(event['_id'], event['title'], 'accepted'),
+                            onPressed: isSubmitting ? null : () => _showConfirmDialog(event['_id'], event['title'], 'accepted'),
                             icon: isSubmitting
                                 ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
                                 : const Icon(Icons.check, size: 18),
                             label: Text(isSubmitting ? 'Envoi...' : 'ACCEPTER'),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.green,
-                            ),
+                            style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
                           ),
                         ),
                       ],

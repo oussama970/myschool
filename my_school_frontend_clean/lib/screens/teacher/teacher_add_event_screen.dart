@@ -2,6 +2,7 @@
 import 'package:flutter/material.dart';
 import 'package:my_school_frontend/services/api_service.dart';
 
+// Gère l'interface de création d'un nouvel événement par un enseignant.
 class TeacherAddEventScreen extends StatefulWidget {
   final String teacherId;
   final String teacherName;
@@ -28,6 +29,7 @@ class _TeacherAddEventScreenState extends State<TeacherAddEventScreen> {
   bool _hasDeadline = true;
   String? _deadlineError;
 
+  // Libère les contrôleurs de texte pour éviter les fuites de mémoire.
   @override
   void dispose() {
     _titleController.dispose();
@@ -35,6 +37,7 @@ class _TeacherAddEventScreenState extends State<TeacherAddEventScreen> {
     super.dispose();
   }
 
+  // Ouvre le sélecteur de date natif pour définir le jour de l'événement ou de la date limite.
   Future<void> _selectDate(BuildContext context, bool isEventDate) async {
     final DateTime? picked = await showDatePicker(
       context: context,
@@ -56,7 +59,6 @@ class _TeacherAddEventScreenState extends State<TeacherAddEventScreen> {
       setState(() {
         if (isEventDate) {
           _selectedDate = picked;
-          // Si la date de l'événement change, vérifier la validité de la date limite
           _validateDeadline();
         } else {
           _responseDeadline = picked;
@@ -66,6 +68,7 @@ class _TeacherAddEventScreenState extends State<TeacherAddEventScreen> {
     }
   }
 
+  // Vérifie que la date limite de réponse est bien située chronologiquement avant l'événement.
   void _validateDeadline() {
     if (_hasDeadline && _responseDeadline.isAfter(_selectedDate)) {
       setState(() {
@@ -78,6 +81,7 @@ class _TeacherAddEventScreenState extends State<TeacherAddEventScreen> {
     }
   }
 
+  // Active ou désactive la prise en compte d'une date limite de réponse pour les parents.
   void _toggleDeadline(bool value) {
     setState(() {
       _hasDeadline = value;
@@ -89,10 +93,10 @@ class _TeacherAddEventScreenState extends State<TeacherAddEventScreen> {
     });
   }
 
+  // Valide les champs du formulaire puis transmet les données de l'événement à l'API.
   Future<void> _saveEvent() async {
     if (!_formKey.currentState!.validate()) return;
     
-    // Vérifier la validité de la date limite
     if (_hasDeadline && _responseDeadline.isAfter(_selectedDate)) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -143,6 +147,7 @@ class _TeacherAddEventScreenState extends State<TeacherAddEventScreen> {
     }
   }
 
+  // Construit l'interface utilisateur avec la carte de saisie des informations de l'événement.
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -245,7 +250,6 @@ class _TeacherAddEventScreenState extends State<TeacherAddEventScreen> {
                     
                     const SizedBox(height: 16),
                     
-                    // Switch pour activer/désactiver la date limite
                     Row(
                       children: [
                         Switch(
@@ -261,7 +265,6 @@ class _TeacherAddEventScreenState extends State<TeacherAddEventScreen> {
                       ],
                     ),
                     
-                    // Date limite (visible uniquement si activée)
                     if (_hasDeadline) ...[
                       const SizedBox(height: 16),
                       const Text(

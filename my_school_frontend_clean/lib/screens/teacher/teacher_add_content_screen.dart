@@ -1,6 +1,8 @@
+// lib/screens/teacher/teacher_add_content_screen.dart
 import 'package:flutter/material.dart';
 import 'package:file_picker/file_picker.dart';
 
+// Écran permettant aux enseignants de créer et publier des contenus (cours, devoirs, rappels) pour une classe.
 class TeacherAddContentScreen extends StatefulWidget {
   final String teacherEmail;
   final String className;
@@ -32,17 +34,20 @@ class _TeacherAddContentScreenState extends State<TeacherAddContentScreen> {
     'Maths', 'Français', 'Histoire', 'Sciences', 'Anglais', 'EPS', 'Arts', 'Musique'
   ];
 
+  // Initialise l'état du widget en pré-remplissant la date du jour.
   @override
   void initState() {
     super.initState();
     _dateController.text = _getCurrentDate();
   }
 
+  // Génère la date actuelle formatée en chaîne de caractères.
   String _getCurrentDate() {
     final now = DateTime.now();
     return '${now.day}/${now.month}/${now.year}';
   }
 
+  // Ouvre le sélecteur de fichiers natif et ajoute le fichier sélectionné à la liste des pièces jointes.
   Future<void> _pickFile() async {
     FilePickerResult? result = await FilePicker.platform.pickFiles();
     
@@ -56,12 +61,14 @@ class _TeacherAddContentScreenState extends State<TeacherAddContentScreen> {
     }
   }
 
+  // Supprime un fichier de la liste des pièces jointes selon son index.
   void _removeFile(int index) {
     setState(() {
       _attachedFiles.removeAt(index);
     });
   }
 
+  // Construit l'interface utilisateur du formulaire de création de contenu.
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -94,7 +101,6 @@ class _TeacherAddContentScreenState extends State<TeacherAddContentScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Type
                 const Text('Type *', style: TextStyle(fontWeight: FontWeight.w600)),
                 const SizedBox(height: 8),
                 Container(
@@ -121,28 +127,19 @@ class _TeacherAddContentScreenState extends State<TeacherAddContentScreen> {
 
                 const SizedBox(height: 16),
 
-                // Titre
                 const Text('Titre *', style: TextStyle(fontWeight: FontWeight.w600)),
                 const SizedBox(height: 8),
                 TextFormField(
                   controller: _titleController,
                   decoration: InputDecoration(
                     hintText: 'Entrez le titre',
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                   ),
-                  validator: (value) {
-                    if (value == null || value.isEmpty) {
-                      return 'Le titre est requis';
-                    }
-                    return null;
-                  },
+                  validator: (value) => (value == null || value.isEmpty) ? 'Le titre est requis' : null,
                 ),
 
                 const SizedBox(height: 16),
 
-                // Matière
                 const Text('Matière *', style: TextStyle(fontWeight: FontWeight.w600)),
                 const SizedBox(height: 8),
                 Container(
@@ -158,17 +155,12 @@ class _TeacherAddContentScreenState extends State<TeacherAddContentScreen> {
                     items: _subjects.map((subject) {
                       return DropdownMenuItem(value: subject, child: Text(subject));
                     }).toList(),
-                    onChanged: (value) {
-                      setState(() {
-                        _selectedSubject = value!;
-                      });
-                    },
+                    onChanged: (value) => setState(() => _selectedSubject = value!),
                   ),
                 ),
 
                 const SizedBox(height: 16),
 
-                // Description
                 const Text('Description', style: TextStyle(fontWeight: FontWeight.w600)),
                 const SizedBox(height: 8),
                 TextFormField(
@@ -176,32 +168,22 @@ class _TeacherAddContentScreenState extends State<TeacherAddContentScreen> {
                   maxLines: 4,
                   decoration: InputDecoration(
                     hintText: 'Description du contenu...',
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                     alignLabelWithHint: true,
                   ),
                 ),
 
                 const SizedBox(height: 16),
 
-                // Date
                 const Text('Date *', style: TextStyle(fontWeight: FontWeight.w600)),
                 const SizedBox(height: 8),
                 TextFormField(
                   controller: _dateController,
                   decoration: InputDecoration(
                     hintText: 'JJ/MM/AAAA',
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                   ),
-                  validator: (value) {
-                    if (value == null || value.isEmpty) {
-                      return 'La date est requise';
-                    }
-                    return null;
-                  },
+                  validator: (value) => (value == null || value.isEmpty) ? 'La date est requise' : null,
                 ),
 
                 if (_showDeadline) ...[
@@ -212,20 +194,14 @@ class _TeacherAddContentScreenState extends State<TeacherAddContentScreen> {
                     controller: _deadlineController,
                     decoration: InputDecoration(
                       hintText: 'JJ/MM/AAAA',
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                     ),
                   ),
                 ],
 
                 const SizedBox(height: 24),
 
-                // Pièces jointes
-                const Text(
-                  'Pièces jointes',
-                  style: TextStyle(fontWeight: FontWeight.w600),
-                ),
+                const Text('Pièces jointes', style: TextStyle(fontWeight: FontWeight.w600)),
                 const SizedBox(height: 12),
                 Container(
                   padding: const EdgeInsets.all(16),
@@ -236,7 +212,6 @@ class _TeacherAddContentScreenState extends State<TeacherAddContentScreen> {
                   ),
                   child: Column(
                     children: [
-                      // Liste des fichiers
                       if (_attachedFiles.isNotEmpty)
                         ..._attachedFiles.asMap().entries.map((entry) {
                           int index = entry.key;
@@ -247,22 +222,13 @@ class _TeacherAddContentScreenState extends State<TeacherAddContentScreen> {
                               children: [
                                 const Icon(Icons.insert_drive_file, size: 20, color: Colors.grey),
                                 const SizedBox(width: 8),
-                                Expanded(
-                                  child: Text(
-                                    '${file['name']} (${file['size']})',
-                                    style: const TextStyle(fontSize: 13),
-                                  ),
-                                ),
-                                IconButton(
-                                  icon: const Icon(Icons.close, size: 16),
-                                  onPressed: () => _removeFile(index),
-                                ),
+                                Expanded(child: Text('${file['name']} (${file['size']})', style: const TextStyle(fontSize: 13))),
+                                IconButton(icon: const Icon(Icons.close, size: 16), onPressed: () => _removeFile(index)),
                               ],
                             ),
                           );
                         }),
                       
-                      // Bouton ajouter
                       OutlinedButton.icon(
                         onPressed: _pickFile,
                         icon: const Icon(Icons.attach_file),
@@ -277,10 +243,7 @@ class _TeacherAddContentScreenState extends State<TeacherAddContentScreen> {
                       const SizedBox(height: 8),
                       Text(
                         'Types acceptés: Images (jpg, png) - max 5 Mo, Documents (pdf, doc) - max 10 Mo',
-                        style: TextStyle(
-                          fontSize: 11,
-                          color: Colors.grey[500],
-                        ),
+                        style: TextStyle(fontSize: 11, color: Colors.grey[500]),
                         textAlign: TextAlign.center,
                       ),
                     ],
@@ -289,7 +252,6 @@ class _TeacherAddContentScreenState extends State<TeacherAddContentScreen> {
 
                 const SizedBox(height: 30),
 
-                // Boutons
                 Row(
                   children: [
                     Expanded(

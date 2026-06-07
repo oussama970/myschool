@@ -1,3 +1,7 @@
+// lib/screens/teacher/teacher_student_detail_screen.dart
+/// Écran enseignant pour visualiser les détails d'un élève
+/// Affiche les informations personnelles de l'élève et la liste des parents liés
+
 import 'package:flutter/material.dart';
 import 'package:my_school_frontend/services/api_service.dart';
 
@@ -34,6 +38,7 @@ class _TeacherStudentDetailScreenState extends State<TeacherStudentDetailScreen>
     _loadStudentData();
   }
 
+  /// Charge les parents liés à l'élève depuis l'API
   Future<void> _loadStudentData() async {
     setState(() => _isLoading = true);
     
@@ -62,6 +67,7 @@ class _TeacherStudentDetailScreenState extends State<TeacherStudentDetailScreen>
     }
   }
 
+  /// Construit l'interface principale
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -91,6 +97,7 @@ class _TeacherStudentDetailScreenState extends State<TeacherStudentDetailScreen>
     );
   }
 
+  /// Construit la carte d'informations personnelles de l'élève
   Widget _buildInfoCard() {
     return Container(
       width: double.infinity,
@@ -103,7 +110,10 @@ class _TeacherStudentDetailScreenState extends State<TeacherStudentDetailScreen>
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text('📋 INFORMATIONS', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF01579B))),
+          const Text(
+            '📋 INFORMATIONS',
+            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF01579B)),
+          ),
           const SizedBox(height: 16),
           _buildInfoRow('Nom', widget.student['fullName'] ?? '-'),
           _buildInfoRow('Email', widget.student['email'] ?? '-'),
@@ -113,6 +123,7 @@ class _TeacherStudentDetailScreenState extends State<TeacherStudentDetailScreen>
     );
   }
 
+  /// Construit la carte des parents liés à l'élève
   Widget _buildParentsCard() {
     return Container(
       width: double.infinity,
@@ -224,6 +235,7 @@ class _TeacherStudentDetailScreenState extends State<TeacherStudentDetailScreen>
     );
   }
 
+  /// Construit une ligne d'information avec label et valeur
   Widget _buildInfoRow(String label, String value) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4),

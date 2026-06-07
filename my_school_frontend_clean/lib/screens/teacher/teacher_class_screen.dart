@@ -1,3 +1,7 @@
+// lib/screens/teacher/teacher_class_screen.dart
+/// Écran enseignant permettant la gestion d'une classe: liste des élèves,
+/// consultation des détails individuels et enregistrement d'absences en masse
+
 import 'package:flutter/material.dart';
 import 'package:my_school_frontend/services/api_service.dart';
 import 'teacher_student_detail_screen.dart';
@@ -67,6 +71,7 @@ class _TeacherClassScreenState extends State<TeacherClassScreen> {
     super.dispose();
   }
 
+  /// Charge l'emploi du temps de l'enseignant pour cette classe
   Future<void> _loadTeacherSchedule() async {
     setState(() => _isLoadingSchedule = true);
     
@@ -100,6 +105,7 @@ class _TeacherClassScreenState extends State<TeacherClassScreen> {
     }
   }
 
+  /// Charge les informations de l'enseignant (matières enseignées)
   Future<void> _loadTeacherInfo() async {
     try {
       final result = await ApiService.getTeacherInfo(widget.teacherEmail);
@@ -116,6 +122,7 @@ class _TeacherClassScreenState extends State<TeacherClassScreen> {
     }
   }
 
+  /// Charge la liste des élèves de la classe et leurs absences existantes
   Future<void> _loadStudents() async {
     setState(() => _isLoading = true);
     
@@ -164,16 +171,19 @@ class _TeacherClassScreenState extends State<TeacherClassScreen> {
     }
   }
 
+  /// Formate une date en clé string (YYYY-MM-DD)
   String _formatDateKey(DateTime date) {
     return '${date.year}-${date.month}-${date.day}';
   }
 
+  /// Vérifie si un élève est déjà absent pour une date donnée
   bool _isStudentAlreadyAbsent(String studentId, DateTime absenceDate) {
     final dateKey = _formatDateKey(absenceDate);
     final existingDates = _existingAbsences[studentId] ?? [];
     return existingDates.contains(dateKey);
   }
 
+  /// Filtre les élèves selon la recherche
   List<dynamic> _getFilteredStudents() {
     if (_searchController.text.isEmpty) return _students;
     return _students.where((s) =>
@@ -182,6 +192,7 @@ class _TeacherClassScreenState extends State<TeacherClassScreen> {
     ).toList();
   }
 
+  /// Démarre le mode d'enregistrement d'absences
   void _startAbsenceMode() {
     setState(() {
       _isAbsenceMode = true;
@@ -194,6 +205,7 @@ class _TeacherClassScreenState extends State<TeacherClassScreen> {
     _showScheduleSelectionDialog();
   }
 
+  /// Annule le mode d'enregistrement d'absences
   void _cancelAbsenceMode() {
     setState(() {
       _isAbsenceMode = false;
@@ -202,6 +214,7 @@ class _TeacherClassScreenState extends State<TeacherClassScreen> {
     });
   }
 
+  /// Affiche le dialogue de sélection du créneau horaire
   void _showScheduleSelectionDialog() {
     showDialog(
       context: context,
@@ -330,6 +343,7 @@ class _TeacherClassScreenState extends State<TeacherClassScreen> {
     );
   }
 
+  /// Met à jour l'état de sélection des élèves en fonction des absences existantes
   void _updateStudentAbsenceStatus() {
     if (_selectedScheduleSlot == null) return;
     
@@ -374,6 +388,7 @@ class _TeacherClassScreenState extends State<TeacherClassScreen> {
     }
   }
 
+  /// Enregistre les absences pour les élèves sélectionnés
   Future<void> _saveAbsences() async {
     if (_selectedScheduleSlot == null) {
       _showSnackBar('Veuillez sélectionner un créneau', Colors.orange);
@@ -466,12 +481,14 @@ class _TeacherClassScreenState extends State<TeacherClassScreen> {
     }
   }
 
+  /// Affiche un snackbar temporaire
   void _showSnackBar(String message, Color color) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text(message), backgroundColor: color),
     );
   }
 
+  /// Sélectionne ou désélectionne tous les élèves (sauf ceux déjà absents)
   void _toggleSelectAll(bool? selected) {
     setState(() {
       final now = DateTime.now();
@@ -495,6 +512,7 @@ class _TeacherClassScreenState extends State<TeacherClassScreen> {
     });
   }
 
+  /// Construit l'interface principale
   @override
   Widget build(BuildContext context) {
     final filteredStudents = _getFilteredStudents();
@@ -527,6 +545,7 @@ class _TeacherClassScreenState extends State<TeacherClassScreen> {
         onRefresh: _loadStudents,
         child: Column(
           children: [
+            // En-tête avec titre
             Padding(
               padding: const EdgeInsets.all(20),
               child: Row(
@@ -560,6 +579,7 @@ class _TeacherClassScreenState extends State<TeacherClassScreen> {
               ),
             ),
 
+            // Barre de recherche
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 20),
               child: Container(
@@ -593,6 +613,7 @@ class _TeacherClassScreenState extends State<TeacherClassScreen> {
 
             const SizedBox(height: 20),
 
+            // Affichage du créneau sélectionné (mode absence)
             if (_isAbsenceMode && _selectedScheduleSlot != null)
               Container(
                 margin: const EdgeInsets.symmetric(horizontal: 16),
@@ -621,6 +642,7 @@ class _TeacherClassScreenState extends State<TeacherClassScreen> {
                 ),
               ),
 
+            // Message indiquant les élèves déjà absents
             if (_isAbsenceMode && alreadyAbsentCount > 0)
               Container(
                 margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -645,6 +667,7 @@ class _TeacherClassScreenState extends State<TeacherClassScreen> {
 
             const SizedBox(height: 8),
 
+            // Liste des élèves
             Expanded(
               child: _isLoading
                   ? const Center(child: CircularProgressIndicator())
@@ -850,6 +873,7 @@ class _TeacherClassScreenState extends State<TeacherClassScreen> {
           ],
         ),
       ),
+      // Barre d'action en bas (mode absence)
       bottomNavigationBar: _isAbsenceMode
           ? Container(
               padding: const EdgeInsets.all(16),

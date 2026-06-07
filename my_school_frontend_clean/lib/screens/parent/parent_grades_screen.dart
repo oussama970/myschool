@@ -1,4 +1,8 @@
 // lib/screens/parent/parent_grades_screen.dart
+/// Écran parent permettant de consulter les notes et examens des enfants
+/// Affiche trois onglets (Oral, Evaluation, Examen) avec les notes obtenues,
+/// les appréciations des enseignants et les photos de copies disponibles
+
 import 'package:flutter/material.dart';
 import 'package:my_school_frontend/services/api_service.dart';
 import 'package:my_school_frontend/models/child_model.dart';
@@ -26,6 +30,7 @@ class _ParentGradesScreenState extends State<ParentGradesScreen> {
     _loadData();
   }
 
+  /// Recharge les données si l'enfant sélectionné change
   @override
   void didUpdateWidget(ParentGradesScreen oldWidget) {
     super.didUpdateWidget(oldWidget);
@@ -34,6 +39,7 @@ class _ParentGradesScreenState extends State<ParentGradesScreen> {
     }
   }
 
+  /// Charge les examens depuis l'API et les trie par type (Oral, Evaluation, Examen) et par date décroissante
   Future<void> _loadData() async {
     if (widget.selectedChild == null) {
       setState(() {
@@ -123,6 +129,7 @@ class _ParentGradesScreenState extends State<ParentGradesScreen> {
     }
   }
 
+  /// Convertit l'abréviation du jour en nom complet (Lu -> Lundi, Ma -> Mardi, etc.)
   String _getDayName(String day) {
     switch(day) {
       case 'Lu': return 'Lundi';
@@ -135,6 +142,7 @@ class _ParentGradesScreenState extends State<ParentGradesScreen> {
     }
   }
 
+  /// Formate une date au format français "JJ Mois AAAA"
   String _formatDate(dynamic dateString) {
     if (dateString == null) return 'Date inconnue';
     try {
@@ -151,6 +159,7 @@ class _ParentGradesScreenState extends State<ParentGradesScreen> {
     }
   }
 
+  /// Retourne la couleur associée au type d'examen (Oral: violet, Evaluation: vert, Examen: rouge)
   Color _getExamTypeColor(String type) {
     switch(type) {
       case 'Orale': return Colors.deepPurple;
@@ -160,6 +169,7 @@ class _ParentGradesScreenState extends State<ParentGradesScreen> {
     }
   }
 
+  /// Retourne l'emoji associé au type d'examen
   String _getExamTypeIcon(String type) {
     switch(type) {
       case 'Orale': return '🎤';
@@ -169,6 +179,7 @@ class _ParentGradesScreenState extends State<ParentGradesScreen> {
     }
   }
 
+  /// Détermine la couleur de la note selon sa valeur (vert >16, bleu >12, orange >10, rouge <10)
   Color _getGradeColor(dynamic grade) {
     double gradeValue;
     if (grade == null) {
@@ -187,6 +198,7 @@ class _ParentGradesScreenState extends State<ParentGradesScreen> {
     return Colors.red;
   }
 
+  /// Retourne l'appréciation textuelle selon la valeur de la note
   String _getGradeText(dynamic grade) {
     double gradeValue;
     if (grade == null) {
@@ -205,6 +217,7 @@ class _ParentGradesScreenState extends State<ParentGradesScreen> {
     return 'À améliorer';
   }
 
+  /// Affiche une modale avec tous les détails d'un examen (note, appréciation, photo, etc.)
   void _showExamDetails(Map<String, dynamic> exam) {
     final bool hasGrade = exam['hasGrade'] == true;
     final dynamic gradeValue = exam['grade'];
@@ -471,6 +484,7 @@ class _ParentGradesScreenState extends State<ParentGradesScreen> {
     );
   }
 
+  /// Construit un widget d'information avec icône et texte (pour date, heure, jour)
   Widget _buildInfoChip(IconData icon, String label) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
@@ -493,6 +507,7 @@ class _ParentGradesScreenState extends State<ParentGradesScreen> {
     );
   }
 
+  /// Construit une section de détails avec icône, titre et contenu
   Widget _buildDetailSection({
     required IconData icon,
     required String title,
@@ -542,6 +557,7 @@ class _ParentGradesScreenState extends State<ParentGradesScreen> {
     );
   }
 
+  /// Construit une section d'affichage de photo avec aperçu cliquable
   Widget _buildPhotoSection(String photoUrl) {
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
@@ -615,6 +631,7 @@ class _ParentGradesScreenState extends State<ParentGradesScreen> {
     );
   }
 
+  /// Affiche un dialogue avec la photo de la copie en grand format
   void _showPhotoDialog(String photoUrl) {
     String cleanUrl = photoUrl.replaceAll('\\', '/');
     final fileName = cleanUrl.split('/').last;
@@ -702,6 +719,7 @@ class _ParentGradesScreenState extends State<ParentGradesScreen> {
     );
   }
 
+  /// Retourne la liste des examens selon l'onglet sélectionné
   List<Map<String, dynamic>> _getCurrentExams() {
     switch(_selectedTab) {
       case 0: return _oralExams;
@@ -711,6 +729,7 @@ class _ParentGradesScreenState extends State<ParentGradesScreen> {
     }
   }
 
+  /// Retourne le type d'examen selon l'onglet sélectionné
   String _getCurrentType() {
     switch(_selectedTab) {
       case 0: return 'Orale';
@@ -720,6 +739,7 @@ class _ParentGradesScreenState extends State<ParentGradesScreen> {
     }
   }
 
+  /// Construit l'interface principale avec les onglets et la liste des examens
   @override
   Widget build(BuildContext context) {
     final currentExams = _getCurrentExams();

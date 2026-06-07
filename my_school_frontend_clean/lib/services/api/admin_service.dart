@@ -1,9 +1,13 @@
 // lib/services/api/admin_service.dart
+/// Service d'administration pour la gestion centralisée des enseignants, classes, parents, élèves
+/// Fournit les méthodes CRUD pour l'administrateur avec authentification via headers
+
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'api_client.dart';
 
 class AdminService {
+  /// Récupère les statistiques du tableau de bord (nombre d'enseignants, élèves, classes, parents)
   static Future<Map<String, dynamic>> getDashboardStats() async {
     try {
       final headers = await ApiClient.getHeaders();
@@ -21,6 +25,7 @@ class AdminService {
     }
   }
 
+  /// Récupère la liste complète des enseignants
   static Future<Map<String, dynamic>> getTeachers() async {
     try {
       final headers = await ApiClient.getHeaders();
@@ -38,6 +43,7 @@ class AdminService {
     }
   }
 
+  /// Récupère une liste simplifiée des enseignants (pour dropdowns)
   static Future<Map<String, dynamic>> getTeachersList() async {
     try {
       final headers = await ApiClient.getHeaders();
@@ -55,6 +61,7 @@ class AdminService {
     }
   }
 
+  /// Ajoute un nouvel enseignant
   static Future<Map<String, dynamic>> addTeacher({
     required String fullName,
     required String email,
@@ -88,6 +95,7 @@ class AdminService {
     }
   }
 
+  /// Supprime un enseignant par son ID
   static Future<Map<String, dynamic>> deleteTeacher(String id) async {
     try {
       final headers = await ApiClient.getHeaders();
@@ -105,6 +113,7 @@ class AdminService {
     }
   }
 
+  /// Récupère la liste complète des classes
   static Future<Map<String, dynamic>> getClasses() async {
     try {
       final headers = await ApiClient.getHeaders();
@@ -122,6 +131,7 @@ class AdminService {
     }
   }
 
+  /// Récupère une liste simplifiée des classes (pour dropdowns)
   static Future<Map<String, dynamic>> getClassesList() async {
     try {
       final headers = await ApiClient.getHeaders();
@@ -139,6 +149,7 @@ class AdminService {
     }
   }
 
+  /// Ajoute une nouvelle classe
   static Future<Map<String, dynamic>> addClass({
     required String level,
     required String group,
@@ -171,6 +182,7 @@ class AdminService {
     }
   }
 
+  /// Supprime une classe par son ID
   static Future<Map<String, dynamic>> deleteClass(String id) async {
     try {
       final headers = await ApiClient.getHeaders();
@@ -188,6 +200,7 @@ class AdminService {
     }
   }
 
+  /// Récupère la liste des parents
   static Future<Map<String, dynamic>> getParents() async {
     try {
       final headers = await ApiClient.getHeaders();
@@ -205,6 +218,7 @@ class AdminService {
     }
   }
 
+  /// Supprime un parent par son ID
   static Future<Map<String, dynamic>> deleteParent(String id) async {
     try {
       final headers = await ApiClient.getHeaders();
@@ -222,6 +236,7 @@ class AdminService {
     }
   }
 
+  /// Récupère la liste des élèves
   static Future<Map<String, dynamic>> getStudents() async {
     try {
       final headers = await ApiClient.getHeaders();
@@ -239,6 +254,7 @@ class AdminService {
     }
   }
 
+  /// Supprime un élève par son ID
   static Future<Map<String, dynamic>> deleteStudent(String id) async {
     try {
       final headers = await ApiClient.getHeaders();
@@ -256,6 +272,7 @@ class AdminService {
     }
   }
 
+  /// Récupère le profil de l'administrateur
   static Future<Map<String, dynamic>> getAdminProfile(String email) async {
     try {
       final headers = await ApiClient.getHeaders();
@@ -280,6 +297,7 @@ class AdminService {
     }
   }
 
+  /// Met à jour le profil de l'administrateur
   static Future<Map<String, dynamic>> updateAdminProfile({
     required String email,
     required String fullName,
@@ -306,6 +324,7 @@ class AdminService {
     }
   }
 
+  /// Change le mot de passe de l'administrateur
   static Future<Map<String, dynamic>> changeAdminPassword({
     required String email,
     required String currentPassword,

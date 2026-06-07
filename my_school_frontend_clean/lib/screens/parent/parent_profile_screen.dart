@@ -1,7 +1,10 @@
 // lib/screens/parent/parent_profile_screen.dart
+/// Écran parent permettant la gestion du profil, des informations personnelles,
+/// du changement de mot de passe, et l'affichage des enfants liés au compte
+
 import 'package:flutter/material.dart';
 import 'package:my_school_frontend/services/api_service.dart';
-import 'package:my_school_frontend/screens/login_screen.dart';
+import 'package:my_school_frontend/screens/auth/login_screen.dart';
 
 class ParentProfileScreen extends StatefulWidget {
   final String parentEmail;
@@ -52,6 +55,7 @@ class _ParentProfileScreenState extends State<ParentProfileScreen> {
     super.dispose();
   }
 
+  /// Charge les enfants liés au parent et la date de création du compte
   Future<void> _loadData() async {
     setState(() => _isLoading = true);
     try {
@@ -65,7 +69,7 @@ class _ParentProfileScreenState extends State<ParentProfileScreen> {
         setState(() => _isLoading = false);
       }
       
-      // Récupérer la date de création
+      // Récupérer la date de création du compte
       try {
         final profileResult = await ApiService.getAdminProfile(widget.parentEmail);
         if (profileResult['success'] && profileResult['createdAt'] != null) {
@@ -81,6 +85,7 @@ class _ParentProfileScreenState extends State<ParentProfileScreen> {
     }
   }
 
+  /// Formate une date au format JJ/MM/AAAA
   String _formatDate(String? dateString) {
     if (dateString == null) return 'Non disponible';
     try {
@@ -91,6 +96,7 @@ class _ParentProfileScreenState extends State<ParentProfileScreen> {
     }
   }
 
+  /// Met à jour le profil parent (nom et téléphone)
   Future<void> _updateProfile() async {
     if (!_formKey.currentState!.validate()) return;
     setState(() => _isLoading = true);
@@ -118,6 +124,7 @@ class _ParentProfileScreenState extends State<ParentProfileScreen> {
     }
   }
 
+  /// Change le mot de passe du parent après validation
   Future<void> _changePassword() async {
     if (_newPasswordController.text != _confirmPasswordController.text) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -161,6 +168,7 @@ class _ParentProfileScreenState extends State<ParentProfileScreen> {
     }
   }
 
+  /// Affiche la boîte de dialogue pour changer le mot de passe
   void _showChangePasswordDialog() {
     _currentPasswordController.clear();
     _newPasswordController.clear();
@@ -230,6 +238,7 @@ class _ParentProfileScreenState extends State<ParentProfileScreen> {
     );
   }
 
+  /// Construit l'interface principale du profil parent
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -239,7 +248,7 @@ class _ParentProfileScreenState extends State<ParentProfileScreen> {
           padding: const EdgeInsets.all(16),
           child: Column(
             children: [
-              // Carte de profil avec dégradé bleu
+              // Carte de profil avec dégradé bleu (header)
               Container(
                 width: double.infinity,
                 padding: const EdgeInsets.all(20),
@@ -297,7 +306,7 @@ class _ParentProfileScreenState extends State<ParentProfileScreen> {
               
               const SizedBox(height: 16),
               
-              // Formulaire d'informations
+              // Formulaire d'informations personnelles
               Form(
                 key: _formKey,
                 child: Container(
@@ -368,7 +377,7 @@ class _ParentProfileScreenState extends State<ParentProfileScreen> {
               
               const SizedBox(height: 16),
               
-              // Enfants liés
+              // Liste des enfants liés au parent
               Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
@@ -426,7 +435,7 @@ class _ParentProfileScreenState extends State<ParentProfileScreen> {
               
               const SizedBox(height: 16),
               
-              // Informations compte
+              // Informations du compte (date création, rôle, statut)
               Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
@@ -475,7 +484,7 @@ class _ParentProfileScreenState extends State<ParentProfileScreen> {
               
               const SizedBox(height: 12),
               
-              // Bouton déconnexion
+              // Bouton Déconnexion
               SizedBox(
                 width: double.infinity,
                 child: OutlinedButton.icon(
@@ -525,6 +534,7 @@ class _ParentProfileScreenState extends State<ParentProfileScreen> {
     );
   }
 
+  /// Construit un champ de formulaire éditable
   Widget _buildEditableField(String label, IconData icon, TextEditingController controller, bool enabled) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
@@ -549,6 +559,7 @@ class _ParentProfileScreenState extends State<ParentProfileScreen> {
     );
   }
 
+  /// Construit une ligne d'information avec icône, label et valeur
   Widget _buildInfoRow(IconData icon, String label, String value, [Color? valueColor]) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 6),

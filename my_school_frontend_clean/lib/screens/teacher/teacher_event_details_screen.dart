@@ -1,3 +1,7 @@
+// lib/screens/teacher/teacher_event_details_screen.dart
+/// Écran enseignant pour visualiser les détails d'un événement et les réponses des parents
+/// Affiche les statistiques de participation (acceptés, refusés, en attente) et la liste des élèves
+
 import 'package:flutter/material.dart';
 import 'package:my_school_frontend/services/api_service.dart';
 import 'package:my_school_frontend/models/event_model.dart';
@@ -31,6 +35,7 @@ class _TeacherEventDetailsScreenState extends State<TeacherEventDetailsScreen> {
     _loadData();
   }
 
+  /// Charge les élèves de la classe et leurs réponses à l'événement
   Future<void> _loadData() async {
     setState(() => _isLoading = true);
     
@@ -49,6 +54,7 @@ class _TeacherEventDetailsScreenState extends State<TeacherEventDetailsScreen> {
     }
   }
 
+  /// Récupère la réponse d'un élève spécifique
   EventResponse? _getStudentResponse(String studentId) {
     try {
       return _responses.firstWhere(
@@ -65,6 +71,7 @@ class _TeacherEventDetailsScreenState extends State<TeacherEventDetailsScreen> {
     }
   }
 
+  /// Retourne la couleur associée au statut de réponse
   Color _getStatusColor(String response) {
     switch (response) {
       case 'accepted': return Colors.green;
@@ -73,6 +80,7 @@ class _TeacherEventDetailsScreenState extends State<TeacherEventDetailsScreen> {
     }
   }
 
+  /// Retourne le texte associé au statut de réponse
   String _getStatusText(String response) {
     switch (response) {
       case 'accepted': return 'Accepté';
@@ -81,6 +89,7 @@ class _TeacherEventDetailsScreenState extends State<TeacherEventDetailsScreen> {
     }
   }
 
+  /// Retourne l'icône associée au statut de réponse
   IconData _getStatusIcon(String response) {
     switch (response) {
       case 'accepted': return Icons.check_circle;
@@ -89,6 +98,7 @@ class _TeacherEventDetailsScreenState extends State<TeacherEventDetailsScreen> {
     }
   }
 
+  /// Construit l'interface principale
   @override
   Widget build(BuildContext context) {
     final acceptedCount = _responses.where((r) => r.response == 'accepted').length;
@@ -107,7 +117,7 @@ class _TeacherEventDetailsScreenState extends State<TeacherEventDetailsScreen> {
           : SingleChildScrollView(
               child: Column(
                 children: [
-                  // Informations de l'événement
+                  // Carte des informations de l'événement
                   Container(
                     margin: const EdgeInsets.all(16),
                     padding: const EdgeInsets.all(20),
@@ -132,7 +142,7 @@ class _TeacherEventDetailsScreenState extends State<TeacherEventDetailsScreen> {
                     ),
                   ),
                   
-                  // Statistiques
+                  // Cartes statistiques (nombre d'élèves, acceptés, refusés, en attente)
                   Container(
                     margin: const EdgeInsets.symmetric(horizontal: 16),
                     padding: const EdgeInsets.all(16),
@@ -217,6 +227,7 @@ class _TeacherEventDetailsScreenState extends State<TeacherEventDetailsScreen> {
     );
   }
 
+  /// Construit une ligne d'information avec label et valeur
   Widget _buildInfoRow(String label, String value) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 6),
@@ -230,6 +241,7 @@ class _TeacherEventDetailsScreenState extends State<TeacherEventDetailsScreen> {
     );
   }
 
+  /// Construit une carte statistique (valeur + label)
   Widget _buildStatCard(String value, String label, Color color) {
     return Expanded(
       child: Column(

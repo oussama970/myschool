@@ -70,7 +70,7 @@ const sendPasswordResetEmail = async (email, code) => {
   await transporter.sendMail(mailOptions);
 };
 
-// Email pour les enseignants - CORRIGÉ
+// Email pour les enseignants 
 const sendTeacherCredentialsEmail = async (email, fullName, password) => {
   console.log(`📧 Tentative d'envoi d'email à l'enseignant: ${email}`);
   

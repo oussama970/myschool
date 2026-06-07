@@ -48,13 +48,19 @@ const {
   getEventsByClass,
   addEvent,
   deleteEvent,
-  getAllExamsByClass  // ✅ AJOUTER
+  getAllExamsByClass
 } = require('../controllers/agendaEventController');
 
 const {
   addExamGrade,
   getExamGrades
 } = require('../controllers/examGradeController');
+
+// ==================== NOUVEAU: IMPORT DES CONTROLLERS HOMEWORK ====================
+const {
+  getSubmissionsByLesson,
+  gradeSubmission
+} = require('../controllers/homeworkController');
 
 // Middleware qui autorise teacher ET admin
 const allowTeacherAndAdmin = (req, res, next) => {
@@ -135,5 +141,11 @@ router.get('/exam-grades/:examId', protect, getExamGrades);
 // ==================== ROUTES FICHIERS ====================
 router.post('/upload', protect, upload.single('file'), uploadFile);
 router.get('/download/:filename', protect, downloadFile);
+
+// ==================== NOUVELLES ROUTES: SOUMISSIONS DEVOIRS ====================
+// Enseignant: récupérer toutes les soumissions pour un devoir
+router.get('/homework-submissions/:lessonId', protect, getSubmissionsByLesson);
+// Enseignant: noter une soumission
+router.post('/homework-submissions/:submissionId/grade', protect, gradeSubmission);
 
 module.exports = router;

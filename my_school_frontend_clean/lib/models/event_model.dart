@@ -1,4 +1,6 @@
 // lib/models/event_model.dart
+
+/// Modèle représentant un événement scolaire
 class EventModel {
   final String id;
   final String title;
@@ -10,9 +12,9 @@ class EventModel {
   final String className;
   final List<EventResponse> studentResponses;
   final DateTime createdAt;
-  final DateTime? responseDeadline; // ✅ AJOUT
+  final DateTime? responseDeadline;
 
-  EventModel({
+  const EventModel({
     required this.id,
     required this.title,
     required this.description,
@@ -23,17 +25,16 @@ class EventModel {
     required this.className,
     required this.studentResponses,
     required this.createdAt,
-    this.responseDeadline, // ✅ AJOUT
+    this.responseDeadline,
   });
 
+  /// Convertit JSON en EventModel
   factory EventModel.fromJson(Map<String, dynamic> json) {
     List<EventResponse> responses = [];
     
     if (json['studentResponses'] != null) {
       final responsesList = json['studentResponses'] as List;
-      for (var resp in responsesList) {
-        responses.add(EventResponse.fromJson(resp));
-      }
+      responses = responsesList.map((r) => EventResponse.fromJson(r)).toList();
     }
 
     DateTime? responseDeadline;
@@ -52,10 +53,11 @@ class EventModel {
       className: json['className'] ?? '',
       studentResponses: responses,
       createdAt: DateTime.parse(json['createdAt']),
-      responseDeadline: responseDeadline, // ✅ AJOUT
+      responseDeadline: responseDeadline,
     );
   }
 
+  /// Convertit EventModel en JSON
   Map<String, dynamic> toJson() => {
     'title': title,
     'description': description,
@@ -65,15 +67,20 @@ class EventModel {
     'teacherName': teacherName,
     'className': className,
     'studentResponses': studentResponses.map((e) => e.toJson()).toList(),
-    'responseDeadline': responseDeadline?.toIso8601String(), // ✅ AJOUT
+    'responseDeadline': responseDeadline?.toIso8601String(),
   };
   
-  // Getter pour compter les réponses
+  /// Nombre de réponses acceptées
   int get acceptedCount => studentResponses.where((r) => r.response == 'accepted').length;
+  
+  /// Nombre de réponses refusées
   int get rejectedCount => studentResponses.where((r) => r.response == 'rejected').length;
+  
+  /// Nombre de réponses en attente
   int get pendingCount => studentResponses.where((r) => r.response == 'pending').length;
 }
 
+/// Modèle représentant la réponse d'un élève à un événement
 class EventResponse {
   final String studentId;
   final String studentName;
@@ -81,7 +88,7 @@ class EventResponse {
   final String? comment;
   final DateTime respondedAt;
 
-  EventResponse({
+  const EventResponse({
     required this.studentId,
     required this.studentName,
     required this.response,

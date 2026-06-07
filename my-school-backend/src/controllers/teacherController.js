@@ -1,3 +1,7 @@
+// backend/src/controllers/teacherController.js
+/// Contrôleur principal pour la gestion des enseignants (CRUD, leçons, notes, absences, événements, fichiers)
+/// Point d'entrée unique pour toutes les fonctionnalités enseignants et parent/élève (lecture)
+
 const Teacher = require('../models/Teacher');
 const Student = require('../models/Student');
 const Class = require('../models/Class');
@@ -9,8 +13,9 @@ const upload = require('../middleware/upload');
 const path = require('path');
 const fs = require('fs');
 
-// ==================== FONCTIONS POUR ADMIN ====================
+// ==================== FONCTIONS POUR ADMIN (CRUD) ====================
 
+/// Crée un nouvel enseignant (admin uniquement)
 const createTeacher = async (req, res) => {
   try {
     const { fullName, email, password, phoneNumber, subjects, classes, sendEmail } = req.body;
@@ -18,6 +23,7 @@ const createTeacher = async (req, res) => {
     console.log('========== CRÉATION ENSEIGNANT ==========');
     console.log('📥 Données reçues:', { fullName, email, phoneNumber, subjects, classes });
 
+    // Validation des champs requis
     if (!fullName || !email || !password) {
       return res.status(400).json({ 
         success: false,
@@ -25,6 +31,7 @@ const createTeacher = async (req, res) => {
       });
     }
 
+    // Validation de la longueur du mot de passe
     if (password.length < 8) {
       return res.status(400).json({ 
         success: false,
@@ -32,6 +39,7 @@ const createTeacher = async (req, res) => {
       });
     }
 
+    // Vérification de l'unicité de l'email
     const existingTeacher = await Teacher.findOne({ email: email.toLowerCase() });
     if (existingTeacher) {
       return res.status(400).json({ 
@@ -40,9 +48,11 @@ const createTeacher = async (req, res) => {
       });
     }
 
+    // Hachage du mot de passe
     const salt = await bcrypt.genSalt(10);
     const hashedPassword = await bcrypt.hash(password, salt);
 
+    // Création de l'enseignant
     const teacher = await Teacher.create({
       fullName,
       email: email.toLowerCase(),
@@ -55,6 +65,7 @@ const createTeacher = async (req, res) => {
 
     console.log('✅ Enseignant créé avec succès');
 
+    // Mise à jour des classes assignées
     if (classes && classes.length > 0) {
       for (const className of classes) {
         await Class.findOneAndUpdate(
@@ -69,6 +80,7 @@ const createTeacher = async (req, res) => {
       }
     }
 
+    // Envoi d'email de bienvenue (optionnel)
     if (sendEmail) {
       try {
         await sendTeacherCredentialsEmail(email, fullName, password);
@@ -96,6 +108,7 @@ const createTeacher = async (req, res) => {
   }
 };
 
+/// Récupère tous les enseignants (admin)
 const getAllTeachers = async (req, res) => {
   try {
     const teachers = await Teacher.find()
@@ -110,6 +123,7 @@ const getAllTeachers = async (req, res) => {
   }
 };
 
+/// Récupère une liste simplifiée des noms d'enseignants (pour dropdown)
 const getTeachersList = async (req, res) => {
   try {
     const teachers = await Teacher.find().select('fullName');
@@ -121,6 +135,7 @@ const getTeachersList = async (req, res) => {
   }
 };
 
+/// Supprime un enseignant (admin)
 const deleteTeacher = async (req, res) => {
   try {
     const teacher = await Teacher.findById(req.params.id);
@@ -128,6 +143,7 @@ const deleteTeacher = async (req, res) => {
       return res.status(404).json({ success: false, message: 'Enseignant non trouvé' });
     }
     
+    // Retirer l'enseignant des classes
     await Class.updateMany(
       { teacherId: teacher._id }, 
       { $set: { teacherId: null, teacherName: '' } }
@@ -141,8 +157,9 @@ const deleteTeacher = async (req, res) => {
   }
 };
 
-// ==================== FONCTIONS POUR ENSEIGNANT ====================
+// ==================== FONCTIONS POUR ENSEIGNANT (INFO) ====================
 
+/// Récupère les informations d'un enseignant par email
 const getTeacherInfo = async (req, res) => {
   try {
     const { email } = req.params;
@@ -172,6 +189,7 @@ const getTeacherInfo = async (req, res) => {
   }
 };
 
+/// Récupère les classes assignées à un enseignant
 const getTeacherClasses = async (req, res) => {
   try {
     let teacher;
@@ -197,6 +215,7 @@ const getTeacherClasses = async (req, res) => {
   }
 };
 
+/// Récupère les notifications d'un enseignant (messages non lus, devoirs en attente)
 const getTeacherNotifications = async (req, res) => {
   try {
     const { email } = req.params;
@@ -223,6 +242,9 @@ const getTeacherNotifications = async (req, res) => {
   }
 };
 
+// ==================== GESTION DES ÉLÈVES ====================
+
+/// Récupère les élèves d'une classe
 const getStudentsByClass = async (req, res) => {
   try {
     const { className } = req.params;
@@ -244,6 +266,7 @@ const getStudentsByClass = async (req, res) => {
   }
 };
 
+/// Récupère tous les élèves (pour admin)
 const getAllStudents = async (req, res) => {
   try {
     const students = await Student.find().select('-password');
@@ -255,6 +278,7 @@ const getAllStudents = async (req, res) => {
   }
 };
 
+/// Ajoute des élèves à une classe
 const addStudentsToClass = async (req, res) => {
   try {
     const { className, studentIds } = req.body;
@@ -316,6 +340,7 @@ const addStudentsToClass = async (req, res) => {
   }
 };
 
+/// Retire un élève d'une classe
 const removeStudentFromClass = async (req, res) => {
   try {
     const { studentId, className } = req.body;
@@ -343,6 +368,7 @@ const removeStudentFromClass = async (req, res) => {
 
 // ==================== GESTION DES LEÇONS ====================
 
+/// Récupère les leçons (cours, devoirs, rappels) d'une classe
 const getLessons = async (req, res) => {
   try {
     const { className } = req.params;
@@ -358,8 +384,6 @@ const getLessons = async (req, res) => {
     if (req.user && req.user.role === 'teacher') {
       filter.teacherId = req.user._id;
       console.log('👨‍🏫 Enseignant - Filtre par ID:', req.user._id);
-    } else {
-      console.log('👤 Parent/Admin/Étudiant - Tous les cours de la classe');
     }
     
     const lessons = await Lesson.find(filter).sort({ createdAt: -1 });
@@ -376,10 +400,18 @@ const getLessons = async (req, res) => {
   }
 };
 
+/// Ajoute une nouvelle leçon (cours, devoir, rappel)
 const addLesson = async (req, res) => {
   try {
     const { title, subject, description, type, className, deadline, files } = req.body;
     
+    console.log('========== ADD LESSON ==========');
+    console.log('Type:', type);
+    console.log('Title:', title);
+    console.log('ClassName:', className);
+    console.log('Deadline reçue:', deadline);
+    
+    // Validation
     if (!title || title.trim() === '') {
       return res.status(400).json({ success: false, message: 'Le titre est requis' });
     }
@@ -397,6 +429,7 @@ const addLesson = async (req, res) => {
       return res.status(403).json({ success: false, message: 'Enseignant non trouvé' });
     }
     
+    // Gestion des fichiers
     let filesArray = [];
     if (files && typeof files === 'string') {
       try {
@@ -408,14 +441,27 @@ const addLesson = async (req, res) => {
       filesArray = files;
     }
     
+    // Gestion sécurisée de la date limite
     let deadlineDate = null;
-    if (deadline && deadline.trim() !== '') {
+    if (deadline && deadline !== null && deadline !== '') {
       try {
-        const parts = deadline.split('/');
-        if (parts.length === 3) {
-          deadlineDate = new Date(parts[2], parts[1] - 1, parts[0]);
+        if (typeof deadline === 'string' && deadline.includes('/')) {
+          const parts = deadline.split('/');
+          if (parts.length === 3) {
+            deadlineDate = new Date(parts[2], parts[1] - 1, parts[0]);
+            if (isNaN(deadlineDate.getTime())) {
+              deadlineDate = null;
+            }
+          }
+        } else if (typeof deadline === 'string' && !isNaN(Date.parse(deadline))) {
+          deadlineDate = new Date(deadline);
+        } else if (deadline instanceof Date) {
+          deadlineDate = deadline;
         }
-      } catch (e) {}
+      } catch (e) {
+        console.log('Erreur parsing deadline:', e);
+        deadlineDate = null;
+      }
     }
     
     const lesson = await Lesson.create({
@@ -430,17 +476,24 @@ const addLesson = async (req, res) => {
       teacherName: teacher.fullName
     });
     
+    console.log('✅ Leçon ajoutée:', lesson._id);
     res.status(201).json({ success: true, lesson: lesson });
   } catch (error) {
-    console.error('Erreur addLesson:', error);
+    console.error('❌ Erreur addLesson:', error);
     res.status(500).json({ success: false, message: 'Erreur serveur: ' + error.message });
   }
 };
 
+/// Met à jour une leçon existante
 const updateLesson = async (req, res) => {
   try {
     const { id } = req.params;
     const { title, subject, description, type, deadline, files } = req.body;
+
+    console.log('========== UPDATE LESSON ==========');
+    console.log('ID:', id);
+    console.log('Type:', type);
+    console.log('Deadline reçue:', deadline);
 
     const lesson = await Lesson.findById(id);
     if (!lesson) {
@@ -454,8 +507,9 @@ const updateLesson = async (req, res) => {
       });
     }
     
+    // Gestion des fichiers
     let filesArray = lesson.files;
-    if (files !== undefined) {
+    if (files !== undefined && files !== null) {
       if (typeof files === 'string') {
         try {
           filesArray = JSON.parse(files);
@@ -467,12 +521,29 @@ const updateLesson = async (req, res) => {
       }
     }
     
+    // Gestion sécurisée de la date limite
     let deadlineDate = lesson.deadline;
-    if (deadline !== undefined && deadline !== '') {
-      const parts = deadline.split('/');
-      if (parts.length === 3) {
-        deadlineDate = new Date(parts[2], parts[1] - 1, parts[0]);
-      } else {
+    if (deadline !== undefined && deadline !== null && deadline !== '') {
+      try {
+        if (typeof deadline === 'string' && deadline.includes('/')) {
+          const parts = deadline.split('/');
+          if (parts.length === 3) {
+            deadlineDate = new Date(parts[2], parts[1] - 1, parts[0]);
+            if (isNaN(deadlineDate.getTime())) {
+              deadlineDate = null;
+            }
+          } else {
+            deadlineDate = null;
+          }
+        } else if (typeof deadline === 'string' && !isNaN(Date.parse(deadline))) {
+          deadlineDate = new Date(deadline);
+        } else if (deadline instanceof Date) {
+          deadlineDate = deadline;
+        } else {
+          deadlineDate = null;
+        }
+      } catch (e) {
+        console.log('Erreur parsing deadline:', e);
         deadlineDate = null;
       }
     }
@@ -490,13 +561,15 @@ const updateLesson = async (req, res) => {
       { new: true }
     );
 
+    console.log('✅ Leçon modifiée:', updatedLesson._id);
     res.json({ success: true, message: 'Leçon modifiée', lesson: updatedLesson });
   } catch (error) {
-    console.error('Erreur updateLesson:', error);
-    res.status(500).json({ success: false, message: 'Erreur serveur' });
+    console.error('❌ Erreur updateLesson:', error);
+    res.status(500).json({ success: false, message: 'Erreur serveur: ' + error.message });
   }
 };
 
+/// Supprime une leçon
 const deleteLesson = async (req, res) => {
   try {
     const { id } = req.params;
@@ -521,6 +594,7 @@ const deleteLesson = async (req, res) => {
   }
 };
 
+/// Récupère l'agenda (calendrier) d'une classe
 const getAgenda = async (req, res) => {
   try {
     const { className } = req.params;
@@ -536,6 +610,7 @@ const getAgenda = async (req, res) => {
 
 // ==================== GESTION DES FICHIERS ====================
 
+/// Upload d'un fichier
 const uploadFile = async (req, res) => {
   try {
     if (!req.file) {
@@ -558,6 +633,7 @@ const uploadFile = async (req, res) => {
   }
 };
 
+/// Téléchargement d'un fichier
 const downloadFile = async (req, res) => {
   try {
     const { filename } = req.params;
@@ -574,8 +650,9 @@ const downloadFile = async (req, res) => {
   }
 };
 
-// ==================== NOTES ET ABSENCES ====================
+// ==================== NOTES ET ABSENCES (ÉCRITURE) ====================
 
+/// Ajoute une note pour un élève
 const addGrade = async (req, res) => {
   try {
     const { studentId, subject, grade, appreciation } = req.body;
@@ -611,6 +688,7 @@ const addGrade = async (req, res) => {
   }
 };
 
+/// Ajoute une absence pour un élève
 const addAbsence = async (req, res) => {
   try {
     const { studentId, date, justified, reason, subject } = req.body;
@@ -650,8 +728,9 @@ const addAbsence = async (req, res) => {
   }
 };
 
-// ==================== LECTURE NOTES ET ABSENCES ====================
+// ==================== NOTES ET ABSENCES (LECTURE) ====================
 
+/// Récupère les notes d'un élève
 const getStudentGrades = async (req, res) => {
   try {
     const { studentId } = req.params;
@@ -677,6 +756,7 @@ const getStudentGrades = async (req, res) => {
   }
 };
 
+/// Récupère les absences d'un élève
 const getStudentAbsences = async (req, res) => {
   try {
     const { studentId } = req.params;
@@ -703,6 +783,7 @@ const getStudentAbsences = async (req, res) => {
   }
 };
 
+/// Récupère à la fois les notes et les absences d'un élève
 const getStudentGradesAndAbsences = async (req, res) => {
   try {
     const { studentId } = req.params;
@@ -742,8 +823,9 @@ const getStudentGradesAndAbsences = async (req, res) => {
   }
 };
 
-// ==================== SUPPRESSION NOTES ET ABSENCES ====================
+// ==================== NOTES ET ABSENCES (SUPPRESSION) ====================
 
+/// Supprime une note d'un élève
 const deleteGrade = async (req, res) => {
   try {
     const { id } = req.params;
@@ -775,6 +857,7 @@ const deleteGrade = async (req, res) => {
   }
 };
 
+/// Supprime une absence d'un élève
 const deleteAbsence = async (req, res) => {
   try {
     const { id } = req.params;
@@ -808,6 +891,7 @@ const deleteAbsence = async (req, res) => {
 
 // ==================== GESTION DU PROFIL ENSEIGNANT ====================
 
+/// Met à jour le profil de l'enseignant (nom, téléphone)
 const updateTeacherProfile = async (req, res) => {
   try {
     const { email, fullName, phoneNumber } = req.body;
@@ -845,6 +929,7 @@ const updateTeacherProfile = async (req, res) => {
   }
 };
 
+/// Change le mot de passe de l'enseignant
 const changeTeacherPassword = async (req, res) => {
   try {
     const { email, currentPassword, newPassword } = req.body;
@@ -879,8 +964,9 @@ const changeTeacherPassword = async (req, res) => {
   }
 };
 
-// ==================== ROUTES POUR PARENT/ÉLÈVE ====================
+// ==================== ROUTES POUR PARENT/ÉLÈVE (LECTURE SEULEMENT) ====================
 
+/// Récupère les détails d'un élève (pour parent)
 const getStudentDetails = async (req, res) => {
   try {
     const { studentId } = req.params;
@@ -897,6 +983,7 @@ const getStudentDetails = async (req, res) => {
   }
 };
 
+/// Récupère les notes d'un élève (pour parent)
 const getStudentGradesForParent = async (req, res) => {
   try {
     const { studentId } = req.params;
@@ -921,6 +1008,7 @@ const getStudentGradesForParent = async (req, res) => {
   }
 };
 
+/// Récupère les absences d'un élève (pour parent)
 const getStudentAbsencesForParent = async (req, res) => {
   try {
     const { studentId } = req.params;
@@ -947,9 +1035,9 @@ const getStudentAbsencesForParent = async (req, res) => {
   }
 };
 
-// ==================== GESTION DES ÉVÉNEMENTS ====================
+// ==================== GESTION DES ÉVÉNEMENTS (PARENT ET ENSEIGNANT) ====================
 
-// ✅ FONCTION ADD EVENT AVEC RESPONSEDEADLINE
+/// Ajoute un événement (enseignant)
 const addEvent = async (req, res) => {
   try {
     const { 
@@ -969,7 +1057,6 @@ const addEvent = async (req, res) => {
     console.log('Date:', date);
     console.log('Date limite réponse:', responseDeadline);
     
-    // Récupérer tous les élèves de la classe
     const students = await Student.find({ className: className });
     console.log(`📚 ${students.length} élèves trouvés dans la classe`);
     
@@ -1001,6 +1088,7 @@ const addEvent = async (req, res) => {
   }
 };
 
+/// Récupère les événements d'une classe (enseignant)
 const getEvents = async (req, res) => {
   try {
     const { className } = req.params;
@@ -1026,6 +1114,7 @@ const getEvents = async (req, res) => {
   }
 };
 
+/// Supprime un événement (enseignant)
 const deleteEvent = async (req, res) => {
   try {
     const { id } = req.params;
@@ -1048,8 +1137,7 @@ const deleteEvent = async (req, res) => {
   }
 };
 
-// ==================== PARENT RESPOND TO EVENT ====================
-
+/// Répond à un événement (parent)
 const respondToEvent = async (req, res) => {
   try {
     const { eventId, studentId, studentName, response, comment } = req.body;
@@ -1064,7 +1152,7 @@ const respondToEvent = async (req, res) => {
       return res.status(404).json({ success: false, message: 'Événement non trouvé' });
     }
     
-    // Vérifier si la date limite est dépassée
+    // Vérification de la date limite
     if (event.responseDeadline && new Date() > new Date(event.responseDeadline)) {
       return res.status(400).json({ 
         success: false, 
@@ -1100,6 +1188,7 @@ const respondToEvent = async (req, res) => {
   }
 };
 
+/// Récupère les événements pour un parent (avec la réponse de l'élève)
 const getEventsForParent = async (req, res) => {
   try {
     const { studentId } = req.params;
@@ -1190,7 +1279,7 @@ module.exports = {
   getStudentAbsencesForParent,
   
   // Event management
-  addEvent,           // ✅ Avec responseDeadline
+  addEvent,
   getEvents,
   deleteEvent,
   respondToEvent,

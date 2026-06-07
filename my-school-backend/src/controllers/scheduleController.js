@@ -1,7 +1,11 @@
+// backend/src/controllers/scheduleController.js
+/// Contrôleur pour la gestion de l'emploi du temps (agenda scolaire)
+/// Permet de sauvegarder, récupérer et consulter les créneaux horaires des classes et enseignants
+
 const Schedule = require('../models/Schedule');
 const Teacher = require('../models/Teacher');
 
-// Fonction utilitaire pour obtenir le nom du jour
+/// Fonction utilitaire pour obtenir le nom complet du jour
 const getDayName = (day) => {
   const days = {
     'Lu': 'Lundi',
@@ -14,7 +18,7 @@ const getDayName = (day) => {
   return days[day] || day;
 };
 
-// Créneaux horaires standards (8h à 13h uniquement)
+/// Créneaux horaires standards (8h à 13h uniquement)
 const TIME_SLOTS = [
   '08h-09h',  // index 0
   '09h-10h',  // index 1
@@ -25,7 +29,7 @@ const TIME_SLOTS = [
 
 const DAYS = ['Lu', 'Ma', 'Me', 'Je', 'Ve', 'Sa'];
 
-// Sauvegarder l'agenda
+/// Sauvegarde ou met à jour l'agenda d'une classe
 const saveSchedule = async (req, res) => {
   try {
     const { className, schedule } = req.body;
@@ -66,7 +70,7 @@ const saveSchedule = async (req, res) => {
   }
 };
 
-// Récupérer l'agenda
+/// Récupère l'agenda d'une classe
 const getSchedule = async (req, res) => {
   try {
     const { className } = req.params;
@@ -122,7 +126,7 @@ const getSchedule = async (req, res) => {
   }
 };
 
-// Récupérer les créneaux d'un enseignant pour une classe
+/// Récupère les créneaux d'un enseignant pour une classe spécifique
 const getTeacherSchedule = async (req, res) => {
   try {
     const { teacherEmail, className } = req.params;
@@ -194,7 +198,7 @@ const getTeacherSchedule = async (req, res) => {
   }
 };
 
-// Récupérer tous les créneaux d'un enseignant pour toutes ses classes
+/// Récupère tous les créneaux d'un enseignant pour toutes ses classes assignées
 const getAllTeacherSchedules = async (req, res) => {
   try {
     const { teacherEmail } = req.params;
@@ -263,7 +267,7 @@ const getAllTeacherSchedules = async (req, res) => {
   }
 };
 
-// Mettre à jour un créneau spécifique
+/// Met à jour un créneau spécifique dans l'agenda
 const updateScheduleSlot = async (req, res) => {
   try {
     const { className, day, slotIndex } = req.params;
@@ -298,7 +302,6 @@ const updateScheduleSlot = async (req, res) => {
   }
 };
 
-// Exporter les fonctions
 module.exports = { 
   saveSchedule, 
   getSchedule, 

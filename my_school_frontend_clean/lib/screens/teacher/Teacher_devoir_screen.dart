@@ -1,3 +1,8 @@
+// lib/screens/teacher/teacher_devoir_screen.dart
+/// Écran enseignant pour la gestion des évaluations et examens
+/// Permet d'ajouter/modifier/supprimer des événements (Oral, Evaluation, Examen)
+/// et de noter les élèves via TeacherGradeStudentsScreen
+
 import 'package:flutter/material.dart';
 import 'package:my_school_frontend/services/api_service.dart';
 import 'teacher_grade_students_screen.dart';
@@ -65,6 +70,7 @@ class _TeacherDevoirScreenState extends State<TeacherDevoirScreen> {
     _loadEvents();
   }
 
+  /// Met à jour la liste des jours disponibles selon le mois sélectionné
   void _updateAvailableDays() {
     int maxDays = _months.firstWhere((m) => m['num'] == _selectedMonth)['days'];
     if (_selectedMonth == 2 && _isLeapYear(DateTime.now().year)) {
@@ -76,18 +82,19 @@ class _TeacherDevoirScreenState extends State<TeacherDevoirScreen> {
     }
   }
 
+  /// Vérifie si l'année est bissextile
   bool _isLeapYear(int year) {
     return (year % 4 == 0 && year % 100 != 0) || (year % 400 == 0);
   }
 
-  // ✅ CORRECTION: Ajout du teacherId dans l'appel API
+  /// Charge les événements (évaluations/examens) depuis l'API
   Future<void> _loadEvents() async {
     setState(() => _isLoading = true);
     
     try {
       final result = await ApiService.getAgendaEvents(
         className: widget.className,
-        teacherId: widget.teacherId, // 👈 AJOUT OBLIGATOIRE
+        teacherId: widget.teacherId,
       );
       
       if (result['success'] && mounted) {
@@ -134,6 +141,7 @@ class _TeacherDevoirScreenState extends State<TeacherDevoirScreen> {
     }
   }
 
+  /// Convertit l'abréviation du jour en nom complet
   String _getFullDay(String day) {
     switch(day) {
       case 'Lu': return 'Lundi';
@@ -146,7 +154,7 @@ class _TeacherDevoirScreenState extends State<TeacherDevoirScreen> {
     }
   }
 
-  // ✅ CORRECTION: Ajout du teacherId et teacherName dans l'appel API
+  /// Ajoute un nouvel événement (évaluation/examen)
   Future<void> _addEvent() async {
     setState(() => _isAddingEvent = true);
     
@@ -161,8 +169,8 @@ class _TeacherDevoirScreenState extends State<TeacherDevoirScreen> {
         day: _selectedDay,
         timeSlot: _selectedTimeSlot,
         date: date,
-        teacherId: widget.teacherId, // 👈 AJOUT OBLIGATOIRE
-        teacherName: widget.teacherName, // 👈 AJOUT OBLIGATOIRE
+        teacherId: widget.teacherId,
+        teacherName: widget.teacherName,
       );
       
       if (mounted && result['success']) {
@@ -194,6 +202,7 @@ class _TeacherDevoirScreenState extends State<TeacherDevoirScreen> {
     }
   }
 
+  /// Supprime un événement après confirmation
   Future<void> _deleteEvent(String eventId) async {
     showDialog(
       context: context,
@@ -231,6 +240,7 @@ class _TeacherDevoirScreenState extends State<TeacherDevoirScreen> {
     );
   }
 
+  /// Affiche le dialogue d'ajout d'événement
   void _showAddEventDialog() {
     _selectedType = 'Orale';
     _selectedDay = 'Lu';
@@ -263,6 +273,7 @@ class _TeacherDevoirScreenState extends State<TeacherDevoirScreen> {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
+                  // Sélection du type (Oral/Evaluation/Examen)
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 12),
                     decoration: BoxDecoration(
@@ -291,6 +302,7 @@ class _TeacherDevoirScreenState extends State<TeacherDevoirScreen> {
                     ),
                   ),
                   const SizedBox(height: 16),
+                  // Sélection du jour de la semaine
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 12),
                     decoration: BoxDecoration(
@@ -313,6 +325,7 @@ class _TeacherDevoirScreenState extends State<TeacherDevoirScreen> {
                     ),
                   ),
                   const SizedBox(height: 12),
+                  // Sélection du créneau horaire
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 12),
                     decoration: BoxDecoration(
@@ -335,6 +348,7 @@ class _TeacherDevoirScreenState extends State<TeacherDevoirScreen> {
                     ),
                   ),
                   const SizedBox(height: 12),
+                  // Sélection du jour du mois
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 12),
                     decoration: BoxDecoration(
@@ -357,6 +371,7 @@ class _TeacherDevoirScreenState extends State<TeacherDevoirScreen> {
                     ),
                   ),
                   const SizedBox(height: 12),
+                  // Sélection du mois
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 12),
                     decoration: BoxDecoration(
@@ -385,6 +400,7 @@ class _TeacherDevoirScreenState extends State<TeacherDevoirScreen> {
                     ),
                   ),
                   const SizedBox(height: 16),
+                  // Affichage de la matière
                   Container(
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
@@ -418,6 +434,7 @@ class _TeacherDevoirScreenState extends State<TeacherDevoirScreen> {
     );
   }
 
+  /// Retourne l'icône associée au type d'événement
   IconData _getIconForType(String type) {
     switch(type) {
       case 'Orale': return Icons.mic;
@@ -427,6 +444,7 @@ class _TeacherDevoirScreenState extends State<TeacherDevoirScreen> {
     }
   }
 
+  /// Retourne la couleur associée au type d'événement
   Color _getColorForType(String type) {
     switch(type) {
       case 'Orale': return Colors.deepPurple;
@@ -436,11 +454,13 @@ class _TeacherDevoirScreenState extends State<TeacherDevoirScreen> {
     }
   }
 
+  /// Retourne l'abréviation du mois
   String _getMonthAbbreviation(int month) {
     const months = ['Jan', 'Fév', 'Mar', 'Avr', 'Mai', 'Juin', 'Juil', 'Aoû', 'Sep', 'Oct', 'Nov', 'Déc'];
     return months[month - 1];
   }
 
+  /// Construit l'interface principale
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -454,6 +474,7 @@ class _TeacherDevoirScreenState extends State<TeacherDevoirScreen> {
           ? const Center(child: CircularProgressIndicator())
           : Column(
               children: [
+                // En-tête avec titre et classe
                 Container(
                   padding: const EdgeInsets.all(12),
                   color: Colors.white,
@@ -479,6 +500,7 @@ class _TeacherDevoirScreenState extends State<TeacherDevoirScreen> {
                   ),
                 ),
                 
+                // Liste des événements
                 Expanded(
                   child: _events.isEmpty
                       ? Center(

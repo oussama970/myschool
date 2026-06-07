@@ -1,4 +1,8 @@
 // lib/services/api/parent_student_service.dart
+/// Service de gestion parent-enfant pour les opérations liées aux parents et étudiants
+/// Gère la liaison parent-enfant, la consultation des notes, absences, événements,
+/// cours, devoirs, et la messagerie parent-enseignant
+
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'api_client.dart';
@@ -6,6 +10,7 @@ import 'api_client.dart';
 class ParentStudentService {
   // ==================== MÉTHODES EXISTANTES ====================
   
+  /// Récupère les détails d'un étudiant
   static Future<Map<String, dynamic>> getStudentDetails(String studentId) async {
     try {
       final headers = await ApiClient.getHeaders();
@@ -23,6 +28,7 @@ class ParentStudentService {
     }
   }
 
+  /// Récupère les notes d'un étudiant pour le parent
   static Future<Map<String, dynamic>> getStudentGradesForParent(String studentId) async {
     try {
       final headers = await ApiClient.getHeaders();
@@ -40,6 +46,7 @@ class ParentStudentService {
     }
   }
 
+  /// Récupère les absences d'un étudiant pour le parent
   static Future<Map<String, dynamic>> getStudentAbsencesForParent(String studentId) async {
     try {
       final headers = await ApiClient.getHeaders();
@@ -57,6 +64,7 @@ class ParentStudentService {
     }
   }
 
+  /// Récupère les événements d'un étudiant pour le parent
   static Future<Map<String, dynamic>> getParentEvents(String studentId) async {
     try {
       final headers = await ApiClient.getHeaders();
@@ -74,6 +82,7 @@ class ParentStudentService {
     }
   }
 
+  /// Parent répond à un événement
   static Future<Map<String, dynamic>> respondToEvent({
     required String eventId,
     required String studentId,
@@ -126,7 +135,7 @@ class ParentStudentService {
     }
   }
 
-  /// Lier un enfant à un parent
+  /// Lie un enfant à un parent via un code parent
   static Future<Map<String, dynamic>> linkChildToParent({
     required String parentCode,
     required String parentId,
@@ -253,7 +262,7 @@ class ParentStudentService {
     }
   }
 
-  /// Parent répond à un événement
+  /// Parent répond à un événement (version améliorée)
   static Future<Map<String, dynamic>> parentRespondToEvent({
     required String eventId,
     required String studentId,
@@ -326,7 +335,7 @@ class ParentStudentService {
     }
   }
 
-  /// Envoyer un message depuis un parent
+  /// Envoie un message depuis un parent
   static Future<Map<String, dynamic>> sendParentMessage({
     required String receiverId,
     required String receiverName,

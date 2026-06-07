@@ -1,9 +1,11 @@
 // backend/src/controllers/examGradeController.js
+/// Contrôleur pour la gestion des notes d'examens
+/// Permet d'ajouter, modifier et récupérer les notes des élèves pour les examens/évaluations
 
 const ExamGrade = require('../models/ExamGrade');
 const AgendaEvent = require('../models/AgendaEvent');
 
-// Ajouter une note d'examen
+/// Ajoute ou met à jour une note d'examen pour un élève
 const addExamGrade = async (req, res) => {
   try {
     const { examId, studentId, studentName, subject, grade, appreciation, photoUrl } = req.body;
@@ -19,7 +21,7 @@ const addExamGrade = async (req, res) => {
       return res.status(404).json({ success: false, message: 'Examen non trouvé' });
     }
 
-    // Vérifier si une note existe déjà
+    // Vérifier si une note existe déjà pour cet élève et cet examen
     let examGrade = await ExamGrade.findOne({ examId, studentId });
 
     if (examGrade) {
@@ -52,7 +54,7 @@ const addExamGrade = async (req, res) => {
   }
 };
 
-// Récupérer toutes les notes d'un examen
+/// Récupère toutes les notes d'un examen (pour l'enseignant)
 const getExamGrades = async (req, res) => {
   try {
     const { examId } = req.params;
@@ -72,7 +74,7 @@ const getExamGrades = async (req, res) => {
   }
 };
 
-// Récupérer les notes d'un élève
+/// Récupère toutes les notes d'un élève (pour l'élève ou le parent)
 const getStudentExamGrades = async (req, res) => {
   try {
     const { studentId } = req.params;
@@ -86,7 +88,7 @@ const getStudentExamGrades = async (req, res) => {
 
     console.log(`✅ ${grades.length} notes trouvées pour l'élève`);
     
-    // Afficher le type pour déboguer
+    // Afficher les types pour déboguer
     grades.forEach(grade => {
       const examType = grade.examId?.type || grade.type || 'Non défini';
       console.log(`   - ${grade.subject}: ${examType} - Note: ${grade.grade}`);

@@ -1,10 +1,15 @@
 // lib/services/api/teacher_service.dart
+/// Service enseignant pour la gestion complète des fonctionnalités enseignants
+/// Gère les informations, élèves, cours, événements, notes, absences, emploi du temps et profil
+
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'api_client.dart';
 
 class TeacherService {
   // ==================== INFORMATIONS ENSEIGNANT ====================
+  
+  /// Récupère les informations d'un enseignant par email
   static Future<Map<String, dynamic>> getTeacherInfo(String email) async {
     try {
       final headers = await ApiClient.getHeaders();
@@ -54,6 +59,7 @@ class TeacherService {
           'phoneNumber': data['phoneNumber'] ?? '',
         };
       }
+      // Fallback avec données mockées
       return {
         'success': true,
         'className': 'CM2 A',
@@ -78,6 +84,7 @@ class TeacherService {
     }
   }
 
+  /// Récupère la liste des classes de l'enseignant
   static Future<Map<String, dynamic>> getTeacherClasses() async {
     try {
       final headers = await ApiClient.getHeaders();
@@ -101,6 +108,7 @@ class TeacherService {
     }
   }
 
+  /// Récupère les notifications de l'enseignant (messages non lus, etc.)
   static Future<Map<String, dynamic>> getTeacherNotifications(String email) async {
     try {
       final headers = await ApiClient.getHeaders();
@@ -125,6 +133,8 @@ class TeacherService {
   }
 
   // ==================== GESTION DES ÉLÈVES ====================
+  
+  /// Récupère les élèves d'une classe
   static Future<Map<String, dynamic>> getStudentsByClass(String className) async {
     try {
       final headers = await ApiClient.getHeaders();
@@ -144,6 +154,7 @@ class TeacherService {
     }
   }
 
+  /// Récupère les parents liés à un élève
   static Future<Map<String, dynamic>> getStudentLinkedParents(String studentId) async {
     try {
       final headers = await ApiClient.getHeaders();
@@ -165,6 +176,7 @@ class TeacherService {
     }
   }
 
+  /// Récupère tous les élèves (administration)
   static Future<Map<String, dynamic>> getAllStudents() async {
     try {
       final headers = await ApiClient.getHeaders();
@@ -184,6 +196,7 @@ class TeacherService {
     }
   }
 
+  /// Ajoute des élèves à une classe
   static Future<Map<String, dynamic>> addStudentsToClass({
     required String className,
     required List<String> studentIds,
@@ -210,6 +223,7 @@ class TeacherService {
     }
   }
 
+  /// Retire un élève d'une classe
   static Future<Map<String, dynamic>> removeStudentFromClass({
     required String studentId,
     required String className,
@@ -237,6 +251,8 @@ class TeacherService {
   }
 
   // ==================== GESTION DES LEÇONS ====================
+  
+  /// Récupère les leçons (cours, devoirs, rappels) d'une classe
   static Future<Map<String, dynamic>> getLessons(String className) async {
     try {
       final headers = await ApiClient.getHeaders();
@@ -256,6 +272,7 @@ class TeacherService {
     }
   }
 
+  /// Ajoute une leçon (cours, devoir, rappel)
   static Future<Map<String, dynamic>> addLesson({
     required String title,
     required String subject,
@@ -292,6 +309,7 @@ class TeacherService {
     }
   }
 
+  /// Met à jour une leçon existante
   static Future<Map<String, dynamic>> updateLesson({
     required String id,
     required String title,
@@ -327,6 +345,7 @@ class TeacherService {
     }
   }
 
+  /// Supprime une leçon
   static Future<Map<String, dynamic>> deleteLesson(String id) async {
     try {
       final headers = await ApiClient.getHeaders();
@@ -347,6 +366,8 @@ class TeacherService {
   }
 
   // ==================== GESTION DES ÉVÉNEMENTS ====================
+  
+  /// Récupère les événements d'un enseignant pour une classe
   static Future<Map<String, dynamic>> getTeacherEvents({
     required String className,
     required String teacherId,
@@ -369,6 +390,7 @@ class TeacherService {
     }
   }
 
+  /// Ajoute un événement (sortie, réunion, etc.)
   static Future<Map<String, dynamic>> addEvent({
     required String title,
     required String description,
@@ -406,6 +428,7 @@ class TeacherService {
     }
   }
 
+  /// Supprime un événement
   static Future<Map<String, dynamic>> deleteEvent(String eventId) async {
     try {
       final headers = await ApiClient.getHeaders();
@@ -425,7 +448,9 @@ class TeacherService {
     }
   }
 
-  // ==================== AGENDA EVENTS ====================
+  // ==================== AGENDA EVENTS (Examens/Évaluations) ====================
+  
+  /// Récupère les événements agenda d'un enseignant pour une classe
   static Future<Map<String, dynamic>> getAgendaEvents({
     required String className,
     required String teacherId,
@@ -448,6 +473,7 @@ class TeacherService {
     }
   }
 
+  /// Ajoute un événement agenda (examen, évaluation)
   static Future<Map<String, dynamic>> addAgendaEvent({
     required String className,
     required String subject,
@@ -486,6 +512,7 @@ class TeacherService {
     }
   }
 
+  /// Supprime un événement agenda
   static Future<Map<String, dynamic>> deleteAgendaEvent(String eventId) async {
     try {
       final headers = await ApiClient.getHeaders();
@@ -505,7 +532,7 @@ class TeacherService {
     }
   }
 
-  // ✅ NOUVELLE MÉTHODE: Récupérer tous les examens d'une classe avec les notes
+  /// Récupère tous les examens d'une classe avec les notes des élèves
   static Future<Map<String, dynamic>> getAllExamsByClass(String className, String studentId) async {
     try {
       final headers = await ApiClient.getHeaders();
@@ -524,6 +551,8 @@ class TeacherService {
   }
 
   // ==================== NOTES D'EXAMEN ====================
+  
+  /// Ajoute une note d'examen pour un élève
   static Future<Map<String, dynamic>> addExamGrade({
     required String examId,
     required String studentId,
@@ -562,6 +591,7 @@ class TeacherService {
     }
   }
 
+  /// Récupère les notes d'un examen
   static Future<Map<String, dynamic>> getExamGrades(String examId) async {
     try {
       final headers = await ApiClient.getHeaders();
@@ -581,6 +611,7 @@ class TeacherService {
     }
   }
 
+  /// Récupère les notes d'examen d'un élève
   static Future<Map<String, dynamic>> getStudentExamGrades(String studentId) async {
     try {
       final headers = await ApiClient.getHeaders();
@@ -601,6 +632,8 @@ class TeacherService {
   }
 
   // ==================== NOTES ET ABSENCES ====================
+  
+  /// Récupère les notes d'un élève
   static Future<Map<String, dynamic>> getStudentGrades(String studentId) async {
     try {
       final headers = await ApiClient.getHeaders();
@@ -620,6 +653,7 @@ class TeacherService {
     }
   }
 
+  /// Récupère les absences d'un élève
   static Future<Map<String, dynamic>> getStudentAbsences(String studentId) async {
     try {
       final headers = await ApiClient.getHeaders();
@@ -639,6 +673,7 @@ class TeacherService {
     }
   }
 
+  /// Ajoute une absence pour un élève
   static Future<Map<String, dynamic>> addAbsence({
     required String studentId,
     required DateTime date,
@@ -673,6 +708,7 @@ class TeacherService {
     }
   }
 
+  /// Ajoute une note pour un élève
   static Future<Map<String, dynamic>> addGrade({
     required String studentId,
     required String subject,
@@ -703,6 +739,7 @@ class TeacherService {
     }
   }
 
+  /// Supprime une note
   static Future<Map<String, dynamic>> deleteGrade(String gradeId) async {
     try {
       final headers = await ApiClient.getHeaders();
@@ -723,6 +760,8 @@ class TeacherService {
   }
 
   // ==================== AGENDA (EMPLOI DU TEMPS) ====================
+  
+  /// Sauvegarde l'emploi du temps d'une classe
   static Future<Map<String, dynamic>> saveSchedule({
     required String className,
     required Map<String, dynamic> schedule,
@@ -760,6 +799,7 @@ class TeacherService {
     }
   }
 
+  /// Récupère l'emploi du temps d'une classe
   static Future<Map<String, dynamic>> getSchedule(String className) async {
     try {
       final headers = await ApiClient.getHeaders();
@@ -779,6 +819,7 @@ class TeacherService {
     }
   }
 
+  /// Récupère l'emploi du temps d'un enseignant pour une classe spécifique
   static Future<Map<String, dynamic>> getTeacherSchedule(String teacherEmail, String className) async {
     try {
       final headers = await ApiClient.getHeaders();
@@ -803,6 +844,7 @@ class TeacherService {
     }
   }
 
+  /// Récupère tous les emplois du temps d'un enseignant
   static Future<Map<String, dynamic>> getAllTeacherSchedules(String teacherEmail) async {
     try {
       final headers = await ApiClient.getHeaders();
@@ -828,6 +870,8 @@ class TeacherService {
   }
 
   // ==================== PROFIL ENSEIGNANT ====================
+  
+  /// Met à jour le profil de l'enseignant
   static Future<Map<String, dynamic>> updateTeacherProfile({
     required String email,
     required String fullName,
@@ -856,6 +900,7 @@ class TeacherService {
     }
   }
 
+  /// Change le mot de passe de l'enseignant
   static Future<Map<String, dynamic>> changeTeacherPassword({
     required String email,
     required String currentPassword,

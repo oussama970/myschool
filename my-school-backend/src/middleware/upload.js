@@ -1,27 +1,32 @@
+// backend/src/middleware/upload.js
+/// Middleware de configuration Multer pour l'upload de fichiers
+/// Permet d'accepter plusieurs types de fichiers (images, PDF, documents Office, vidéos, audios)
+
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
 
-// Créer le dossier uploads s'il n'existe pas
+// Création du dossier uploads s'il n'existe pas
 const uploadDir = 'uploads';
 if (!fs.existsSync(uploadDir)) {
   fs.mkdirSync(uploadDir, { recursive: true });
 }
 
-// Configuration du stockage
+/// Configuration du stockage des fichiers
 const storage = multer.diskStorage({
   destination: function (req, file, cb) {
     cb(null, 'uploads/');
   },
   filename: function (req, file, cb) {
+    // Génération d'un nom unique (timestamp + nombre aléatoire)
     const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
     cb(null, uniqueSuffix + path.extname(file.originalname));
   }
 });
 
-// Filtrer les types de fichiers - ÉLARGI pour accepter plus de types
+/// Filtre pour accepter les types de fichiers courants
 const fileFilter = (req, file, cb) => {
-  // Accepter tous les types de fichiers courants
+  // Types MIME acceptés
   const allowedTypes = [
     'image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp',
     'application/pdf',
@@ -39,8 +44,13 @@ const fileFilter = (req, file, cb) => {
     'audio/mp3'
   ];
   
-  // Vérifier aussi par extension
-  const allowedExtensions = ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.pdf', '.doc', '.docx', '.xls', '.xlsx', '.ppt', '.pptx', '.txt', '.csv', '.mp4', '.mp3'];
+  // Extensions acceptées
+  const allowedExtensions = [
+    '.jpg', '.jpeg', '.png', '.gif', '.webp', 
+    '.pdf', '.doc', '.docx', '.xls', '.xlsx', 
+    '.ppt', '.pptx', '.txt', '.csv', 
+    '.mp4', '.mp3'
+  ];
   const ext = path.extname(file.originalname).toLowerCase();
   
   if (allowedTypes.includes(file.mimetype) || allowedExtensions.includes(ext)) {
@@ -51,6 +61,7 @@ const fileFilter = (req, file, cb) => {
   }
 };
 
+/// Configuration Multer avec limite de taille (50MB max)
 const upload = multer({ 
   storage: storage,
   fileFilter: fileFilter,

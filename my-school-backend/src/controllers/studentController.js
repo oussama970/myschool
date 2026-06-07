@@ -1,5 +1,10 @@
+// backend/src/controllers/studentController.js
+/// Contrôleur pour la gestion des étudiants (administration)
+/// Permet de récupérer tous les étudiants et d'en supprimer
+
 const Student = require('../models/Student');
 
+/// Récupère la liste complète de tous les étudiants
 const getAllStudents = async (req, res) => {
   try {
     const students = await Student.find().select('-password');
@@ -10,6 +15,7 @@ const getAllStudents = async (req, res) => {
   }
 };
 
+/// Supprime un étudiant par son ID
 const deleteStudent = async (req, res) => {
   try {
     const student = await Student.findById(req.params.id);

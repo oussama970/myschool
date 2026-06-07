@@ -9,6 +9,9 @@ import 'package:image_picker/image_picker.dart';
 import 'package:socket_io_client/socket_io_client.dart' as IO;
 import 'package:permission_handler/permission_handler.dart';
 
+/// Écran de chat entre un parent et un enseignant
+/// Permet d'échanger des messages en temps réel avec Socket.IO
+/// Supporte l'envoi de fichiers (images, PDF, documents)
 class ParentChatScreen extends StatefulWidget {
   final String teacherId;
   final String teacherName;
@@ -36,6 +39,7 @@ class ParentChatScreen extends StatefulWidget {
 }
 
 class _ParentChatScreenState extends State<ParentChatScreen> {
+  // ==================== CONTRÔLEURS & ÉTATS ====================
   final TextEditingController _messageController = TextEditingController();
   final List<Map<String, dynamic>> _messages = [];
   final ScrollController _scrollController = ScrollController();
@@ -50,8 +54,14 @@ class _ParentChatScreenState extends State<ParentChatScreen> {
   int _unreadCount = 0;
   bool _isSending = false;
 
+  // Configuration du serveur
+  static const String serverIp = '10.224.96.72';
+  static const String serverUrl = 'http://$serverIp:5000';
+
   final ImagePicker _picker = ImagePicker();
 
+  // ==================== CYCLE DE VIE ====================
+  
   @override
   void initState() {
     super.initState();
@@ -74,6 +84,9 @@ class _ParentChatScreenState extends State<ParentChatScreen> {
     super.dispose();
   }
 
+  // ==================== PERMISSIONS ====================
+  
+  /// Demande les permissions de stockage sur Android
   Future<void> _requestPermissions() async {
     if (Platform.isAndroid) {
       final status = await Permission.storage.request();
@@ -83,6 +96,9 @@ class _ParentChatScreenState extends State<ParentChatScreen> {
     }
   }
 
+  // ==================== INFORMATIONS CONTACT ====================
+  
+  /// Charge les informations du contact (enseignant)
   Future<void> _loadContactInfo() async {
     try {
       setState(() {
@@ -97,8 +113,11 @@ class _ParentChatScreenState extends State<ParentChatScreen> {
     }
   }
 
+  // ==================== WEBSOCKET (SOCKET.IO) ====================
+  
+  /// Initialise la connexion Socket.IO pour la messagerie temps réel
   void _initSocket() {
-    _socket = IO.io('http://10.0.2.2:5000', <String, dynamic>{
+    _socket = IO.io(serverUrl, <String, dynamic>{
       'transports': ['websocket'],
       'autoConnect': true,
       'reconnection': true,
@@ -117,9 +136,7 @@ class _ParentChatScreenState extends State<ParentChatScreen> {
       if (!_isDisposed && mounted) {
         print('✅ Authentifié sur le serveur WebSocket');
         if (mounted) {
-          setState(() {
-            _isConnected = true;
-          });
+          setState(() => _isConnected = true);
         }
       }
     });
@@ -168,9 +185,7 @@ class _ParentChatScreenState extends State<ParentChatScreen> {
             SnackBar(content: Text('Erreur: ${data['error']}'), backgroundColor: Colors.red),
           );
           if (data['tempId'] != null) {
-            setState(() {
-              _messages.removeWhere((m) => m['_id'] == data['tempId']);
-            });
+            setState(() => _messages.removeWhere((m) => m['_id'] == data['tempId']));
           }
         }
         setState(() {
@@ -198,9 +213,7 @@ class _ParentChatScreenState extends State<ParentChatScreen> {
     _socket.on('user_typing', (data) {
       if (!_isDisposed && mounted) {
         if (mounted) {
-          setState(() {
-            _isTyping = data['isTyping'];
-          });
+          setState(() => _isTyping = data['isTyping']);
         }
       }
     });
@@ -209,9 +222,7 @@ class _ParentChatScreenState extends State<ParentChatScreen> {
       if (!_isDisposed && mounted) {
         print('🔴 Déconnecté du serveur WebSocket');
         if (mounted) {
-          setState(() {
-            _isConnected = false;
-          });
+          setState(() => _isConnected = false);
         }
       }
     });
@@ -223,6 +234,9 @@ class _ParentChatScreenState extends State<ParentChatScreen> {
     });
   }
 
+  // ==================== CHARGEMENT DES MESSAGES ====================
+  
+  /// Charge l'historique des messages depuis l'API
   Future<void> _loadMessages() async {
     if (!mounted) return;
     setState(() => _isLoading = true);
@@ -266,6 +280,7 @@ class _ParentChatScreenState extends State<ParentChatScreen> {
     }
   }
 
+  /// Défile automatiquement vers le bas de la conversation
   void _scrollToBottom() {
     if (!mounted) return;
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -279,6 +294,9 @@ class _ParentChatScreenState extends State<ParentChatScreen> {
     });
   }
 
+  // ==================== TYPING INDICATOR ====================
+  
+  /// Envoie un signal "l'utilisateur est en train d'écrire"
   void _onTyping() {
     if (!_isConnected || !mounted) return;
     
@@ -302,6 +320,9 @@ class _ParentChatScreenState extends State<ParentChatScreen> {
     });
   }
 
+  // ==================== GESTION DES FICHIERS ====================
+  
+  /// Prend une photo avec l'appareil photo
   Future<void> _takePhoto() async {
     try {
       final XFile? photo = await _picker.pickImage(
@@ -334,6 +355,7 @@ class _ParentChatScreenState extends State<ParentChatScreen> {
     }
   }
 
+  /// Choisit une image depuis la galerie
   Future<void> _pickImageFromGallery() async {
     try {
       final XFile? image = await _picker.pickImage(
@@ -366,6 +388,7 @@ class _ParentChatScreenState extends State<ParentChatScreen> {
     }
   }
 
+  /// Sélectionne un fichier depuis l'explorateur
   Future<void> _pickFile() async {
     try {
       FilePickerResult? result = await FilePicker.platform.pickFiles(
@@ -409,6 +432,7 @@ class _ParentChatScreenState extends State<ParentChatScreen> {
     }
   }
 
+  /// Détermine le type de fichier à partir de son extension
   String _getFileType(String fileName) {
     final ext = fileName.toLowerCase().split('.').last;
     if (['jpg', 'jpeg', 'png', 'gif', 'webp'].contains(ext)) return 'image';
@@ -419,12 +443,371 @@ class _ParentChatScreenState extends State<ParentChatScreen> {
     return 'file';
   }
 
+  /// Affiche un message SnackBar
   void _showSnackBar(String message, Color color) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text(message), backgroundColor: color, duration: const Duration(seconds: 2)),
     );
   }
 
+  // ==================== MÉNAGE DES FICHIERS ====================
+  
+  /// Supprime un fichier de la liste des pièces jointes
+  void _removeFile(int index) {
+    if (mounted) {
+      setState(() {
+        _attachedFiles.removeAt(index);
+      });
+    }
+  }
+
+  // ==================== TÉLÉCHARGEMENT DE FICHIERS ====================
+  
+  /// Télécharge et ouvre un fichier joint
+  Future<void> _downloadAndOpenFile(String filename, String originalName) async {
+    try {
+      _showSnackBar('Téléchargement en cours...', Colors.blue);
+      
+      final result = await ApiService.downloadFile(filename, originalName);
+      
+      if (result['success']) {
+        final String filePath = result['filePath'];
+        final String fileName = result['fileName'];
+        
+        _showSnackBar('✅ Fichier téléchargé: $fileName', Colors.green);
+        
+        final openResult = await OpenFile.open(filePath);
+        
+        if (openResult.type != ResultType.done) {
+          _showSnackBar('Impossible d\'ouvrir le fichier', Colors.orange);
+        }
+      } else {
+        _showSnackBar('❌ Erreur: ${result['message']}', Colors.red);
+      }
+    } catch (e) {
+      print('❌ Erreur download: $e');
+      _showSnackBar('Erreur: $e', Colors.red);
+    }
+  }
+
+  // ==================== ENVOI DE MESSAGE ====================
+  
+  /// Envoie un message avec ses pièces jointes
+  Future<void> _sendMessage() async {
+    if (!mounted) return;
+    if (_isSending) return;
+    
+    final bool hasText = _messageController.text.trim().isNotEmpty;
+    final bool hasFiles = _attachedFiles.isNotEmpty;
+    
+    if (!hasText && !hasFiles) return;
+    
+    setState(() {
+      _isSending = true;
+    });
+    
+    // Upload des fichiers joints
+    List<Map<String, dynamic>> uploadedFiles = [];
+    
+    for (var fileData in _attachedFiles) {
+      if (fileData.containsKey('file') && fileData['file'] != null) {
+        try {
+          print('📤 Upload du fichier: ${fileData['name']}');
+          
+          final uploadResult = await ApiService.uploadFile(fileData['file']);
+          
+          if (uploadResult['success']) {
+            uploadedFiles.add({
+              'filename': uploadResult['file']['filename'],
+              'originalName': uploadResult['file']['originalName'],
+              'fileType': uploadResult['file']['fileType'],
+              'fileSize': uploadResult['file']['fileSize'],
+            });
+            print('✅ Fichier uploadé: ${uploadResult['file']['originalName']}');
+          } else {
+            print('❌ Erreur upload: ${uploadResult['message']}');
+          }
+        } catch (e) {
+          print('❌ Exception upload: $e');
+        }
+      }
+    }
+    
+    final messageText = _messageController.text.trim();
+    final String finalMessage = messageText.isEmpty && uploadedFiles.isNotEmpty 
+        ? "📎 Fichier joint" 
+        : messageText;
+    
+    final tempId = DateTime.now().millisecondsSinceEpoch.toString();
+    
+    // Message local pour affichage immédiat
+    final localMessage = {
+      '_id': tempId,
+      'message': finalMessage,
+      'senderId': widget.parentId,
+      'senderName': widget.parentName,
+      'senderRole': 'parent',
+      'receiverId': widget.teacherId,
+      'receiverName': widget.teacherName,
+      'receiverRole': 'teacher',
+      'attachments': uploadedFiles,
+      'isRead': false,
+      'createdAt': DateTime.now().toIso8601String(),
+      'isPending': true,
+    };
+    
+    setState(() {
+      _messages.add(localMessage);
+    });
+    _scrollToBottom();
+    
+    // Envoi via WebSocket
+    if (_isConnected) {
+      _socket.emit('send_message', {
+        'receiverId': widget.teacherId,
+        'receiverName': widget.teacherName,
+        'receiverRole': 'teacher',
+        'message': finalMessage,
+        'senderId': widget.parentId,
+        'senderName': widget.parentName,
+        'senderRole': 'parent',
+        'attachments': uploadedFiles,
+        'tempId': tempId,
+      });
+      print('📤 Message envoyé via WebSocket avec ${uploadedFiles.length} fichier(s)');
+    } else {
+      _showSnackBar('Non connecté au serveur', Colors.orange);
+      setState(() {
+        _isSending = false;
+        _messages.removeWhere((m) => m['_id'] == tempId);
+      });
+    }
+  }
+
+  // ==================== MÉTHODES UTILITAIRES ====================
+  
+  /// Formate la date pour l'affichage (ex: "2j", "3h", "5min")
+  String _formatDate(DateTime date) {
+    final now = DateTime.now();
+    final diff = now.difference(date);
+    
+    if (diff.inDays > 0) {
+      return '${diff.inDays}j';
+    } else if (diff.inHours > 0) {
+      return '${diff.inHours}h';
+    } else if (diff.inMinutes > 0) {
+      return '${diff.inMinutes}min';
+    } else {
+      return 'maintenant';
+    }
+  }
+
+  /// Retourne l'icône correspondant au type de fichier
+  IconData _getIconForFile(String type) {
+    switch (type) {
+      case 'image': return Icons.image;
+      case 'video': return Icons.video_library;
+      case 'audio': return Icons.audiotrack;
+      case 'pdf': return Icons.picture_as_pdf;
+      case 'word': return Icons.description;
+      default: return Icons.insert_drive_file;
+    }
+  }
+
+  /// Retourne l'icône correspondant à l'extension du fichier
+  IconData _getIconForFileType(String fileType) {
+    if (fileType == '.pdf') return Icons.picture_as_pdf;
+    if (fileType == '.jpg' || fileType == '.png' || fileType == '.jpeg' || fileType == '.webp') return Icons.image;
+    if (fileType == '.doc' || fileType == '.docx') return Icons.description;
+    if (fileType == '.mp4') return Icons.video_library;
+    if (fileType == '.mp3') return Icons.audiotrack;
+    return Icons.insert_drive_file;
+  }
+
+  // ==================== BUILD UI ====================
+  
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: const Color(0xFFF5F7FA),
+      appBar: AppBar(
+        title: Row(
+          children: [
+            CircleAvatar(
+              radius: 20,
+              backgroundColor: const Color(0xFF0288D1).withOpacity(0.1),
+              child: Text(
+                _contactInfo?['avatar'] ?? '?',
+                style: const TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: Color(0xFF0288D1),
+                ),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    widget.teacherName,
+                    style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    '${widget.childName} • ${widget.className}',
+                    style: const TextStyle(fontSize: 12, fontWeight: FontWeight.normal),
+                  ),
+                ],
+              ),
+            ),
+            if (_isConnected)
+              Container(
+                width: 10,
+                height: 10,
+                decoration: const BoxDecoration(
+                  color: Colors.green,
+                  shape: BoxShape.circle,
+                ),
+              ),
+          ],
+        ),
+        backgroundColor: const Color(0xFF0288D1),
+        foregroundColor: Colors.white,
+      ),
+      body: Column(
+        children: [
+          // Liste des messages
+          Expanded(
+            child: _isLoading
+                ? const Center(child: CircularProgressIndicator())
+                : ListView.builder(
+                    controller: _scrollController,
+                    padding: const EdgeInsets.all(16),
+                    reverse: false,
+                    itemCount: _messages.length,
+                    itemBuilder: (context, index) {
+                      final message = _messages[index];
+                      final isMe = message['senderId'].toString() == widget.parentId;
+                      final isPending = message['isPending'] == true;
+                      return _buildMessageBubble(
+                        message['message'],
+                        isMe,
+                        _formatDate(DateTime.parse(message['createdAt'])),
+                        message['attachments'] ?? [],
+                        message['isRead'] ?? false,
+                        isPending,
+                      );
+                    },
+                  ),
+          ),
+
+          // Liste des fichiers attachés en attente d'envoi
+          if (_attachedFiles.isNotEmpty)
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              color: Colors.grey.shade100,
+              height: 50,
+              child: ListView.builder(
+                scrollDirection: Axis.horizontal,
+                itemCount: _attachedFiles.length,
+                itemBuilder: (context, index) {
+                  final file = _attachedFiles[index];
+                  return Container(
+                    margin: const EdgeInsets.only(right: 8),
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(color: Colors.grey.shade300),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          _getIconForFile(file['type']),
+                          size: 16,
+                          color: const Color(0xFF0288D1),
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          file['name'].length > 20 ? '${file['name'].substring(0, 20)}...' : file['name'],
+                          style: const TextStyle(fontSize: 12),
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.close, size: 16),
+                          onPressed: () => _removeFile(index),
+                        ),
+                      ],
+                    ),
+                  );
+                },
+              ),
+            ),
+
+          // Zone de saisie du message
+          _buildMessageInput(),
+        ],
+      ),
+    );
+  }
+
+  /// Construit la zone de saisie du message
+  Widget _buildMessageInput() {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        boxShadow: [
+          BoxShadow(
+            color: Colors.grey.withOpacity(0.1),
+            blurRadius: 10,
+            offset: const Offset(0, -5),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          IconButton(
+            icon: const Icon(Icons.attach_file, color: Color(0xFF0288D1)),
+            onPressed: _showAttachmentOptions,
+          ),
+          Expanded(
+            child: TextField(
+              controller: _messageController,
+              onChanged: (value) => _onTyping(),
+              decoration: InputDecoration(
+                hintText: 'Écrire un message...',
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(24),
+                  borderSide: BorderSide.none,
+                ),
+                filled: true,
+                fillColor: Colors.grey.shade100,
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 12,
+                ),
+              ),
+              maxLines: 4,
+              minLines: 1,
+            ),
+          ),
+          const SizedBox(width: 8),
+          CircleAvatar(
+            backgroundColor: const Color(0xFF0288D1),
+            child: IconButton(
+              icon: const Icon(Icons.send, color: Colors.white, size: 20),
+              onPressed: _isSending ? null : _sendMessage,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Affiche la popup d'options pour ajouter des pièces jointes
   void _showAttachmentOptions() {
     if (!mounted) return;
     showModalBottomSheet(
@@ -484,345 +867,15 @@ class _ParentChatScreenState extends State<ParentChatScreen> {
     );
   }
 
-  void _removeFile(int index) {
-    if (mounted) {
-      setState(() {
-        _attachedFiles.removeAt(index);
-      });
-    }
-  }
-
-  Future<void> _downloadAndOpenFile(String filename, String originalName) async {
-    try {
-      _showSnackBar('Téléchargement en cours...', Colors.blue);
-      
-      final result = await ApiService.downloadFile(filename, originalName);
-      
-      if (result['success']) {
-        final String filePath = result['filePath'];
-        final String fileName = result['fileName'];
-        
-        _showSnackBar('✅ Fichier téléchargé: $fileName', Colors.green);
-        
-        final openResult = await OpenFile.open(filePath);
-        
-        if (openResult.type != ResultType.done) {
-          _showSnackBar('Impossible d\'ouvrir le fichier', Colors.orange);
-        }
-      } else {
-        _showSnackBar('❌ Erreur: ${result['message']}', Colors.red);
-      }
-    } catch (e) {
-      print('❌ Erreur download: $e');
-      _showSnackBar('Erreur: $e', Colors.red);
-    }
-  }
-
-  Future<void> _sendMessage() async {
-    if (!mounted) return;
-    if (_isSending) return;
-    
-    final bool hasText = _messageController.text.trim().isNotEmpty;
-    final bool hasFiles = _attachedFiles.isNotEmpty;
-    
-    if (!hasText && !hasFiles) return;
-    
-    setState(() {
-      _isSending = true;
-    });
-    
-    List<Map<String, dynamic>> uploadedFiles = [];
-    
-    for (var fileData in _attachedFiles) {
-      if (fileData.containsKey('file') && fileData['file'] != null) {
-        try {
-          print('📤 Upload du fichier: ${fileData['name']}');
-          
-          final uploadResult = await ApiService.uploadFile(fileData['file']);
-          
-          if (uploadResult['success']) {
-            uploadedFiles.add({
-              'filename': uploadResult['file']['filename'],
-              'originalName': uploadResult['file']['originalName'],
-              'fileType': uploadResult['file']['fileType'],
-              'fileSize': uploadResult['file']['fileSize'],
-            });
-            print('✅ Fichier uploadé: ${uploadResult['file']['originalName']}');
-          } else {
-            print('❌ Erreur upload: ${uploadResult['message']}');
-          }
-        } catch (e) {
-          print('❌ Exception upload: $e');
-        }
-      }
-    }
-    
-    final messageText = _messageController.text.trim();
-    final String finalMessage = messageText.isEmpty && uploadedFiles.isNotEmpty 
-        ? "📎 Fichier joint" 
-        : messageText;
-    
-    final tempId = DateTime.now().millisecondsSinceEpoch.toString();
-    
-    // Message local pour affichage immédiat
-    final localMessage = {
-      '_id': tempId,
-      'message': finalMessage,
-      'senderId': widget.parentId,
-      'senderName': widget.parentName,
-      'senderRole': 'parent',
-      'receiverId': widget.teacherId,
-      'receiverName': widget.teacherName,
-      'receiverRole': 'teacher',
-      'attachments': uploadedFiles,
-      'isRead': false,
-      'createdAt': DateTime.now().toIso8601String(),
-      'isPending': true,
-    };
-    
-    setState(() {
-      _messages.add(localMessage);
-    });
-    _scrollToBottom();
-    
-    // Envoyer via WebSocket
-    if (_isConnected) {
-      _socket.emit('send_message', {
-        'receiverId': widget.teacherId,
-        'receiverName': widget.teacherName,
-        'receiverRole': 'teacher',
-        'message': finalMessage,
-        'senderId': widget.parentId,
-        'senderName': widget.parentName,
-        'senderRole': 'parent',
-        'attachments': uploadedFiles,
-        'tempId': tempId,
-      });
-      print('📤 Message envoyé via WebSocket avec ${uploadedFiles.length} fichier(s)');
-    } else {
-      _showSnackBar('Non connecté au serveur', Colors.orange);
-      setState(() {
-        _isSending = false;
-        _messages.removeWhere((m) => m['_id'] == tempId);
-      });
-    }
-  }
-
-  String _formatDate(DateTime date) {
-    final now = DateTime.now();
-    final diff = now.difference(date);
-    
-    if (diff.inDays > 0) {
-      return '${diff.inDays}j';
-    } else if (diff.inHours > 0) {
-      return '${diff.inHours}h';
-    } else if (diff.inMinutes > 0) {
-      return '${diff.inMinutes}min';
-    } else {
-      return 'maintenant';
-    }
-  }
-
-  IconData _getIconForFile(String type) {
-    switch (type) {
-      case 'image':
-        return Icons.image;
-      case 'video':
-        return Icons.video_library;
-      case 'audio':
-        return Icons.audiotrack;
-      case 'pdf':
-        return Icons.picture_as_pdf;
-      case 'word':
-        return Icons.description;
-      default:
-        return Icons.insert_drive_file;
-    }
-  }
-
-  IconData _getIconForFileType(String fileType) {
-    if (fileType == '.pdf') return Icons.picture_as_pdf;
-    if (fileType == '.jpg' || fileType == '.png' || fileType == '.jpeg' || fileType == '.webp') return Icons.image;
-    if (fileType == '.doc' || fileType == '.docx') return Icons.description;
-    if (fileType == '.mp4') return Icons.video_library;
-    if (fileType == '.mp3') return Icons.audiotrack;
-    return Icons.insert_drive_file;
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: const Color(0xFFF5F7FA),
-      appBar: AppBar(
-        title: Row(
-          children: [
-            CircleAvatar(
-              radius: 20,
-              backgroundColor: const Color(0xFF0288D1).withOpacity(0.1),
-              child: Text(
-                _contactInfo?['avatar'] ?? '?',
-                style: const TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                  color: Color(0xFF0288D1),
-                ),
-              ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    widget.teacherName,
-                    style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    '${widget.childName} • ${widget.className}',
-                    style: const TextStyle(fontSize: 12, fontWeight: FontWeight.normal),
-                  ),
-                ],
-              ),
-            ),
-            if (_isConnected)
-              Container(
-                width: 10,
-                height: 10,
-                decoration: const BoxDecoration(
-                  color: Colors.green,
-                  shape: BoxShape.circle,
-                ),
-              ),
-          ],
-        ),
-        backgroundColor: const Color(0xFF0288D1),
-        foregroundColor: Colors.white,
-      ),
-      body: Column(
-        children: [
-          Expanded(
-            child: _isLoading
-                ? const Center(child: CircularProgressIndicator())
-                : ListView.builder(
-                    controller: _scrollController,
-                    padding: const EdgeInsets.all(16),
-                    reverse: false,
-                    itemCount: _messages.length,
-                    itemBuilder: (context, index) {
-                      final message = _messages[index];
-                      final isMe = message['senderId'].toString() == widget.parentId;
-                      final isPending = message['isPending'] == true;
-                      return _buildMessageBubble(
-                        message['message'],
-                        isMe,
-                        _formatDate(DateTime.parse(message['createdAt'])),
-                        message['attachments'] ?? [],
-                        message['isRead'] ?? false,
-                        isPending,
-                      );
-                    },
-                  ),
-          ),
-
-          if (_attachedFiles.isNotEmpty)
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              color: Colors.grey.shade100,
-              height: 50,
-              child: ListView.builder(
-                scrollDirection: Axis.horizontal,
-                itemCount: _attachedFiles.length,
-                itemBuilder: (context, index) {
-                  final file = _attachedFiles[index];
-                  return Container(
-                    margin: const EdgeInsets.only(right: 8),
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(20),
-                      border: Border.all(color: Colors.grey.shade300),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(
-                          _getIconForFile(file['type']),
-                          size: 16,
-                          color: const Color(0xFF0288D1),
-                        ),
-                        const SizedBox(width: 4),
-                        Text(
-                          file['name'].length > 20 ? '${file['name'].substring(0, 20)}...' : file['name'],
-                          style: const TextStyle(fontSize: 12),
-                        ),
-                        IconButton(
-                          icon: const Icon(Icons.close, size: 16),
-                          onPressed: () => _removeFile(index),
-                        ),
-                      ],
-                    ),
-                  );
-                },
-              ),
-            ),
-
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.grey.withOpacity(0.1),
-                  blurRadius: 10,
-                  offset: const Offset(0, -5),
-                ),
-              ],
-            ),
-            child: Row(
-              children: [
-                IconButton(
-                  icon: const Icon(Icons.attach_file, color: Color(0xFF0288D1)),
-                  onPressed: _showAttachmentOptions,
-                ),
-                Expanded(
-                  child: TextField(
-                    controller: _messageController,
-                    onChanged: (value) => _onTyping(),
-                    decoration: InputDecoration(
-                      hintText: 'Écrire un message...',
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(24),
-                        borderSide: BorderSide.none,
-                      ),
-                      filled: true,
-                      fillColor: Colors.grey.shade100,
-                      contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 12,
-                      ),
-                    ),
-                    maxLines: 4,
-                    minLines: 1,
-                  ),
-                ),
-                const SizedBox(width: 8),
-                CircleAvatar(
-                  backgroundColor: const Color(0xFF0288D1),
-                  child: IconButton(
-                    icon: const Icon(Icons.send, color: Colors.white, size: 20),
-                    onPressed: _isSending ? null : _sendMessage,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildMessageBubble(String text, bool isMe, String time, List<dynamic> attachments, bool isRead, bool isPending) {
+  /// Construit une bulle de message
+  Widget _buildMessageBubble(
+    String text,
+    bool isMe,
+    String time,
+    List<dynamic> attachments,
+    bool isRead,
+    bool isPending,
+  ) {
     return Align(
       alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
       child: Container(
@@ -843,6 +896,7 @@ class _ParentChatScreenState extends State<ParentChatScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.end,
           children: [
+            // Pièces jointes
             if (attachments.isNotEmpty) ...[
               ...attachments.map((file) => Padding(
                 padding: const EdgeInsets.only(bottom: 8),
@@ -873,6 +927,7 @@ class _ParentChatScreenState extends State<ParentChatScreen> {
               )),
               const SizedBox(height: 4),
             ],
+            // Message texte
             Text(
               text,
               style: TextStyle(
@@ -881,6 +936,7 @@ class _ParentChatScreenState extends State<ParentChatScreen> {
               ),
             ),
             const SizedBox(height: 4),
+            // Date et statut
             Row(
               mainAxisSize: MainAxisSize.min,
               children: [

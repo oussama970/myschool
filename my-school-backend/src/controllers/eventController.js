@@ -1,7 +1,11 @@
+// backend/src/controllers/eventController.js
+/// Contrôleur pour la gestion des événements (sorties, réunions, etc.)
+/// Permet de créer, lire, supprimer des événements et de gérer les réponses des parents/élèves
+
 const Event = require('../models/Event');
 const Student = require('../models/Student');
 
-// Récupérer les événements d'une classe
+/// Récupère les événements d'une classe (pour l'enseignant)
 const getEventsByClass = async (req, res) => {
   try {
     const { className } = req.params;
@@ -21,7 +25,7 @@ const getEventsByClass = async (req, res) => {
   }
 };
 
-// Créer un événement (avec responseDeadline)
+/// Crée un nouvel événement (avec date limite de réponse optionnelle)
 const createEvent = async (req, res) => {
   try {
     const { 
@@ -41,6 +45,7 @@ const createEvent = async (req, res) => {
     console.log('Teacher ID:', teacherId);
     console.log('Date limite réponse:', responseDeadline);
     
+    // Validation des champs requis
     if (!title || !description || !date || !teacherId || !className) {
       return res.status(400).json({ 
         success: false, 
@@ -52,6 +57,7 @@ const createEvent = async (req, res) => {
     const students = await Student.find({ className: className });
     console.log(`📚 ${students.length} élèves trouvés dans la classe`);
     
+    // Initialiser les réponses des élèves à "pending"
     const studentResponses = students.map(student => ({
       studentId: student._id,
       studentName: student.fullName,
@@ -80,7 +86,7 @@ const createEvent = async (req, res) => {
   }
 };
 
-// Supprimer un événement
+/// Supprime un événement
 const deleteEvent = async (req, res) => {
   try {
     const { id } = req.params;
@@ -103,7 +109,7 @@ const deleteEvent = async (req, res) => {
   }
 };
 
-// Parent répond à un événement (avec vérification de la date limite)
+/// Parent répond à un événement (avec vérification de la date limite)
 const respondToEvent = async (req, res) => {
   try {
     const { eventId, studentId, studentName, response, comment } = req.body;
@@ -126,6 +132,7 @@ const respondToEvent = async (req, res) => {
       });
     }
     
+    // Mettre à jour ou ajouter la réponse de l'élève
     const existingResponseIndex = event.studentResponses.findIndex(
       r => r.studentId.toString() === studentId
     );
@@ -154,7 +161,7 @@ const respondToEvent = async (req, res) => {
   }
 };
 
-// Récupérer les événements pour un parent (avec la date limite)
+/// Récupère les événements pour un parent (avec la date limite)
 const getEventsForParent = async (req, res) => {
   try {
     const { studentId } = req.params;
@@ -170,6 +177,7 @@ const getEventsForParent = async (req, res) => {
     const events = await Event.find({ className: student.className })
       .sort({ date: -1 });
     
+    // Ajouter la réponse de l'élève à chaque événement
     const eventsWithResponse = events.map(event => {
       const studentResponse = event.studentResponses.find(
         r => r.studentId.toString() === studentId
